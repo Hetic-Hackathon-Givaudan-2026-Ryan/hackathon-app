@@ -15,11 +15,11 @@
     "prepare": "husky"
   },
   "lint-staged": {
-    ".{ts,js,mjs}": [
+    "*.{ts,js,mjs}": [
       "eslint --fix",
       "prettier --write"
     ],
-    ".{json,md,yml,yaml,html,css}": "prettier --write"
+    "*.{json,md,yml,yaml,html,css}": "prettier --write"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
