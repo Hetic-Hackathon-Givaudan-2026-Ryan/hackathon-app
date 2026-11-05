@@ -41,11 +41,11 @@ La base PostgreSQL démarre avec Docker Compose. Les scripts SQL de `db/init/`
 créent le schéma et insèrent des données de démonstration au premier démarrage
 de la base. L’interface envoie ses requêtes à l’API via le proxy Vite `/api`.
 
-| Service | Adresse / port | Remarques |
-| --- | --- | --- |
-| Interface web | <http://localhost:5173> | Serveur Vite de développement |
-| API | <http://localhost:3000> | `GET /api/health`, `GET /api/questions`, `POST /api/questions` |
-| PostgreSQL | `localhost:5432` depuis l’hôte | Base `app`, utilisateur `app` |
+| Service       | Adresse / port                 | Remarques                                                      |
+| ------------- | ------------------------------ | -------------------------------------------------------------- |
+| Interface web | <http://localhost:5173>        | Serveur Vite de développement                                  |
+| API           | <http://localhost:3000>        | `GET /api/health`, `GET /api/questions`, `POST /api/questions` |
+| PostgreSQL    | `localhost:5432` depuis l’hôte | Base `app`, utilisateur `app`                                  |
 
 ### Configuration de l’API et de l’IA
 
