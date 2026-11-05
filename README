@@ -21,7 +21,7 @@ l’application principale.
 2. Exécuter **Dev Containers: Reopen in Container** depuis la palette de commandes.
    Au premier lancement, VS Code construit le conteneur et installe les dépendances
    npm. Le fichier `api/.env` est créé à partir de `api/.env.example` s’il n’existe
-   pas déjà.
+   pas déjà
 3. Dans un terminal du conteneur, démarrer l’API :
 
    ```sh
