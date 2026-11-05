@@ -1,0 +1,126 @@
+# Hackathon
+
+Application de démonstration composée d’une interface web, d’une API Node.js,
+d’une base PostgreSQL et d’un service IA Python indépendant.
+
+## Prérequis
+
+- Docker Desktop installé et démarré.
+- Visual Studio Code avec l’extension **Dev Containers**.
+- Git et un accès au dépôt.
+- (Optionnel, pour le service IA) Python 3.10+, Ollama et le modèle `llama3.2:1b`,
+  ou un fournisseur compatible avec l’API OpenAI configuré dans `api/.env`.
+
+Node.js et le client PostgreSQL sont installés dans le conteneur de développement.
+Il n’est donc pas nécessaire de les installer sur la machine hôte pour développer
+l’application principale.
+
+## Démarrer l’environnement
+
+1. Cloner le dépôt et l’ouvrir dans Visual Studio Code.
+2. Exécuter **Dev Containers: Reopen in Container** depuis la palette de commandes.
+   Au premier lancement, VS Code construit le conteneur et installe les dépendances
+   npm. Le fichier `api/.env` est créé à partir de `api/.env.example` s’il n’existe
+   pas déjà.
+3. Dans un terminal du conteneur, démarrer l’API :
+
+   ```sh
+   npm run dev --workspace=api
+   ```
+
+4. Dans un autre terminal du conteneur, démarrer le site web :
+
+   ```sh
+   npm run dev --workspace=web
+   ```
+
+5. Ouvrir l’adresse Vite affichée dans le terminal, généralement
+   <http://localhost:5173>.
+
+La base PostgreSQL démarre avec Docker Compose. Les scripts SQL de `db/init/`
+créent le schéma et insèrent des données de démonstration au premier démarrage
+de la base. L’interface envoie ses requêtes à l’API via le proxy Vite `/api`.
+
+| Service       | Adresse / port                 | Remarques                                                      |
+| ------------- | ------------------------------ | -------------------------------------------------------------- |
+| Interface web | <http://localhost:5173>        | Serveur Vite de développement                                  |
+| API           | <http://localhost:3000>        | `GET /api/health`, `GET /api/questions`, `POST /api/questions` |
+| PostgreSQL    | `localhost:5432` depuis l’hôte | Base `app`, utilisateur `app`                                  |
+
+### Configuration de l’API et de l’IA
+
+La configuration locale se trouve dans `api/.env` (non versionné). Le fichier
+`api/.env.example` est copié automatiquement à la création du conteneur. Vérifier
+les variables `DATABASE_URL`, `AI_BASE_URL`, `AI_MODEL` et `AI_API_KEY` selon
+l’environnement IA choisi. Pour Ollama installé sur la machine hôte, l’exemple
+utilise `host.docker.internal`; la base est joignable depuis le conteneur sous le
+nom `db`.
+
+Le dossier `ia/` contient un service FastAPI séparé, qui n’est pas démarré par le
+Compose actuel. Pour le lancer localement, créer son environnement et son fichier
+de configuration :
+
+```sh
+python -m venv ia/.venv
+source ia/.venv/bin/activate
+pip install -r ia/requirements.txt
+cp ia/.env.example ia/.env
+```
+
+Renseigner `API_KEY` dans `ia/.env`, démarrer Ollama et récupérer le modèle
+configuré dans `MODEL`, puis lancer le serveur depuis la racine du dépôt :
+
+```sh
+uvicorn main:app --reload --env-file ia/.env --app-dir ia --port 8000
+```
+
+La documentation interactive FastAPI est alors disponible à
+<http://localhost:8000/docs>. Les requêtes à `POST /answer` doivent fournir
+l’en-tête `X-API-Key`. Ce service IA est distinct de l’intégration compatible
+OpenAI utilisée par l’API Node.js.
+
+## Développement et vérifications
+
+Depuis la racine du dépôt, dans le conteneur :
+
+```sh
+npm run lint
+npm run format:check
+npm run build --workspace=api
+npm run build --workspace=web
+```
+
+Pour appliquer le formatage :
+
+```sh
+npm run format
+```
+
+ESLint contrôle JavaScript et TypeScript. Prettier applique le formatage commun
+(configuration dans `.prettierrc.json`). Le hook pre-commit exécute les
+vérifications prévues par Husky/lint-staged.
+
+## Conventions de nommage
+
+- **Fichiers et dossiers** : noms minuscules ; utiliser des noms explicites
+  (ex. `main.ts`, `init/`).
+- **TypeScript / JavaScript** : `camelCase` pour variables et fonctions,
+  `PascalCase` pour types et classes, `UPPER_SNAKE_CASE` pour les variables
+  d’environnement.
+- **Python** : `snake_case` pour modules, fonctions et variables ; `PascalCase`
+  pour les classes ; `UPPER_SNAKE_CASE` pour les constantes et variables
+  d’environnement.
+- **SQL** : `snake_case` pour tables et colonnes (ex. `created_at`).
+- Conserver les changements de formatage automatiques et lancer les vérifications
+  avant d’ouvrir une pull request.
+
+## Structure du dépôt
+
+```text
+api/       API Express en TypeScript
+web/       Interface web TypeScript servie par Vite
+ia/        Service FastAPI Python indépendant
+db/init/   Schéma et données SQL initiales de PostgreSQL
+.devcontainer/  Configuration de l’environnement VS Code / Docker
+compose.yaml    Conteneurs de développement et PostgreSQL
+```
