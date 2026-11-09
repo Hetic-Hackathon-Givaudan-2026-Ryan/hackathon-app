@@ -13,6 +13,9 @@ const PORT = Number(process.env.PORT ?? 3000);
 
 const db = new pg.Pool({ connectionString: DATABASE_URL });
 const app = express();
+
+// DÉMO : variable inutilisée volontaire, la CI doit échouer. Ne pas fusionner.
+const demoCheckRouge = true;
 app.use(express.json());
 
 app.get('/api/health', async (_req, res) => {
