@@ -1,0 +1,127 @@
+openapi: 3.1.0
+info:
+  title: API Hackathon
+  version: 0.1.0
+  description: >-
+    API Express de `api/src/index.ts`. Elle enregistre des questions dans
+    PostgreSQL et obtient leur réponse auprès d'un fournisseur d'IA compatible
+    OpenAI (voir `api/.env.example`). Le front l'appelle via le proxy Vite `/api`.
+servers:
+  - url: http://localhost:3000
+    description: Dev container (`npm run dev`)
+tags:
+  - name: santé
+  - name: questions
+paths:
+  /api/health:
+    get:
+      tags: [santé]
+      summary: Vérifie que l'API joint la base
+      operationId: getHealth
+      responses:
+        '200':
+          description: L'API répond et PostgreSQL aussi.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+        '500':
+          $ref: '#/components/responses/ErreurServeur'
+  /api/questions:
+    get:
+      tags: [questions]
+      summary: Liste les 10 dernières questions
+      description: Triées de la plus récente à la plus ancienne (`id` décroissant).
+      operationId: listQuestions
+      responses:
+        '200':
+          description: Au plus 10 questions.
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 10
+                items:
+                  $ref: '#/components/schemas/Question'
+        '500':
+          $ref: '#/components/responses/ErreurServeur'
+    post:
+      tags: [questions]
+      summary: Pose une question à l'IA et enregistre la réponse
+      description: >-
+        La question est envoyée au fournisseur d'IA (`ask()`), puis la question
+        et sa réponse sont insérées dans la table `questions`. L'appel attend la
+        réponse de l'IA.
+      operationId: createQuestion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NouvelleQuestion'
+      responses:
+        '201':
+          description: Question enregistrée avec sa réponse.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Question'
+        '400':
+          description: Question absente ou vide après suppression des espaces.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+              example:
+                error: Question manquante
+        '500':
+          $ref: '#/components/responses/ErreurServeur'
+components:
+  schemas:
+    Health:
+      type: object
+      required: [status, db]
+      properties:
+        status:
+          type: string
+          const: ok
+        db:
+          type: string
+          description: Résultat de `SELECT version()`.
+          example: PostgreSQL 17.6 on x86_64-pc-linux-gnu
+    NouvelleQuestion:
+      type: object
+      required: [question]
+      properties:
+        question:
+          type: string
+          minLength: 1
+          example: Combien de temps dure le hackathon ?
+    Question:
+      type: object
+      description: Une ligne de la table `questions` (`db/init/001-schema.sql`).
+      required: [id, question, answer, created_at]
+      properties:
+        id:
+          type: integer
+          example: 2
+        question:
+          type: string
+          example: Combien de temps dure le hackathon ?
+        answer:
+          type: string
+          example: Deux semaines.
+        created_at:
+          type: string
+          format: date-time
+    Erreur:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+  responses:
+    ErreurServeur:
+      description: >-
+        Base injoignable ou fournisseur d'IA en erreur. Express renvoie sa page
+        d'erreur par défaut, pas un JSON.
