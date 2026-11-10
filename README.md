@@ -118,7 +118,7 @@ vérifications prévues par Husky/lint-staged.
 
 ```text
 api/       API Express en TypeScript
-web/       Interface web TypeScript servie par Vite
+web/       Interface web React + TypeScript servie par Vite
 ia/        Service FastAPI Python indépendant
 db/init/   Schéma et données SQL initiales de PostgreSQL
 .devcontainer/  Configuration de l’environnement VS Code / Docker
