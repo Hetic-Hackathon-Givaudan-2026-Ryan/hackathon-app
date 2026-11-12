@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router';
 import type { Prospect } from '../types';
+import { ScoreBadge } from './ui';
 
 export interface Column {
   key: string;
@@ -28,11 +29,7 @@ export const columns = {
     key: 'score',
     label: 'Score',
     className: 'col-score',
-    cell: (p) => (
-      <>
-        <b>{p.score.total}</b>/100
-      </>
-    ),
+    cell: (p) => <ScoreBadge total={p.score.total} trend={p.score.trend} />,
   },
 } satisfies Record<string, Column>;
 

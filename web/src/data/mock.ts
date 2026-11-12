@@ -517,7 +517,27 @@ const seeds: Seed[] = [
   },
 ];
 
+// Évolution récente du score, en points, pour la démo
+const trends: Record<string, number> = {
+  'nordika-foods': 6,
+  'maison-lumen': 4,
+  'velia-beverages': 2,
+  'brava-snacks': -3,
+  'atelier-seve': 1,
+  'kora-dairy': -2,
+  'lys-co': 3,
+  'hestia-bakery': -5,
+  'solenne-cosmetiques': 0,
+  'ostra-nutrition': 2,
+  'aurel-parfums': -1,
+  'fjord-kitchen': -4,
+  'melo-drinks': 1,
+  'terrae-bio': 0,
+  'camille-fils': -2,
+};
+
 export const prospects: Prospect[] = seeds
   .map(make)
+  .map((p) => ({ ...p, score: { ...p.score, trend: trends[p.id] ?? 0 } }))
   .sort((a, b) => b.score.total - a.score.total)
   .map((p, i) => ({ ...p, score: { ...p.score, rank: i + 1 } }));

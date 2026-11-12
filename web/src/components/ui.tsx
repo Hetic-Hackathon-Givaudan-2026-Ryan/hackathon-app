@@ -168,3 +168,36 @@ export function LoadError({ error }: { error: Error }) {
     </p>
   );
 }
+
+// Score mis en avant : valeur en gras et tendance fléchée (verte si ça monte,
+// rouge si ça baisse). La flèche et le signe portent le sens, pas seulement la couleur.
+export function ScoreBadge({
+  total,
+  trend = 0,
+  size = 'md',
+}: {
+  total: number;
+  trend?: number;
+  size?: 'md' | 'lg';
+}) {
+  const kind = trend > 0 ? 'up' : trend < 0 ? 'down' : 'flat';
+  const label =
+    trend > 0
+      ? `en hausse de ${trend} points`
+      : trend < 0
+        ? `en baisse de ${-trend} points`
+        : 'stable';
+  return (
+    <span
+      className={`score-badge score-badge--${size}`}
+      aria-label={`Score ${total} sur 100, ${label}`}
+    >
+      <b>{total}</b>
+      <small>/100</small>
+      <span className={`trend trend--${kind}`} aria-hidden="true">
+        {kind === 'up' ? '▲' : kind === 'down' ? '▼' : '–'}
+        {trend !== 0 && <i>{Math.abs(trend)}</i>}
+      </span>
+    </span>
+  );
+}

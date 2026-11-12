@@ -58,6 +58,7 @@ export interface ScoreAxis {
 
 export interface ScoreDetail {
   total: number; // 0-100
+  trend?: number; // évolution récente, en points (+ ça monte, - ça baisse)
   rank: number; // rang dans le portefeuille
   reliability: 'élevée' | 'moyenne' | 'faible';
   sources: number;

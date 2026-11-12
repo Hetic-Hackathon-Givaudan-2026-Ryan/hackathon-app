@@ -14,6 +14,10 @@
   --solid: #18181b; /* boutons pleins, badges sombres */
   --solid-ink: #ffffff;
   --highlight: #fafaf0;
+  --good: #15803d; /* tendance en hausse (contraste AA sur blanc) */
+  --good-soft: #dcfce7;
+  --bad: #b91c1c; /* tendance en baisse */
+  --bad-soft: #fee2e2;
   --shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 8px 24px rgb(0 0 0 / 0.08);
   --radius: 8px;
   --ease: cubic-bezier(0.2, 0, 0, 1);
@@ -35,6 +39,10 @@
     --solid: #f4f4f5;
     --solid-ink: #18181b;
     --highlight: #26261f;
+    --good: #4ade80;
+    --good-soft: #14532d;
+    --bad: #f87171;
+    --bad-soft: #450a0a;
     --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px rgb(0 0 0 / 0.4);
     color-scheme: dark;
   }
@@ -52,6 +60,10 @@
   --solid: #f4f4f5;
   --solid-ink: #18181b;
   --highlight: #26261f;
+  --good: #4ade80;
+  --good-soft: #14532d;
+  --bad: #f87171;
+  --bad-soft: #450a0a;
   --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px rgb(0 0 0 / 0.4);
   color-scheme: dark;
 }
@@ -402,14 +414,65 @@ h1 {
 .table .col-name a:focus-visible {
   outline-offset: 4px;
 }
-.table .col-score b {
+/* ---------- Score mis en avant ---------- */
+.score-badge {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 2px;
+  white-space: nowrap;
+}
+.score-badge b {
+  font-size: 17px;
   font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
 }
-.table .col-score {
+.score-badge small {
   color: var(--muted);
+  font-size: 11px;
 }
-.table .col-score b {
-  color: var(--ink);
+.score-badge .trend {
+  margin-left: 8px;
+}
+.trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.trend i {
+  font-style: normal;
+}
+.trend--up {
+  color: var(--good);
+  background: var(--good-soft);
+}
+.trend--down {
+  color: var(--bad);
+  background: var(--bad-soft);
+}
+.trend--flat {
+  color: var(--muted);
+  background: var(--sunken);
+}
+.table tbody tr:hover .trend {
+  transform: translateY(-1px);
+}
+.trend {
+  transition: transform var(--fast) var(--ease);
+}
+.hero__trend {
+  align-self: center;
+  margin: 2px 0;
+  font-size: 12px;
+}
+.hero__trend small {
+  font-weight: 400;
+  opacity: 0.8;
 }
 .table .col-why {
   white-space: normal;
@@ -686,8 +749,8 @@ h1 {
 }
 .ring {
   position: relative;
-  width: 84px;
-  height: 84px;
+  width: 104px;
+  height: 104px;
   align-self: center;
 }
 .ring svg {
@@ -716,7 +779,7 @@ h1 {
   line-height: 1;
 }
 .ring__label b {
-  font-size: 26px;
+  font-size: 34px;
   font-weight: 700;
 }
 .ring__label small {

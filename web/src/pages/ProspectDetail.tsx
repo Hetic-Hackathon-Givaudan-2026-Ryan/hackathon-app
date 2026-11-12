@@ -13,6 +13,20 @@ import {
   useToast,
 } from '../components/ui';
 
+// Tendance sous l'anneau du score : flèche colorée, signe et texte
+function Trend({ value }: { value: number }) {
+  const kind = value > 0 ? 'up' : value < 0 ? 'down' : 'flat';
+  return (
+    <p className={`hero__trend trend trend--${kind}`}>
+      <span aria-hidden="true">
+        {kind === 'up' ? '▲' : kind === 'down' ? '▼' : '–'}
+      </span>
+      {value > 0 ? `+${value} pts` : value < 0 ? `${value} pts` : 'Stable'}
+      <small> · derniers échanges</small>
+    </p>
+  );
+}
+
 const linkLabel = (links: Question['links']) =>
   links === 'contacts'
     ? 'lié aux interlocuteurs'
@@ -158,6 +172,7 @@ export default function ProspectDetail() {
         </div>
         <div className="hero__score">
           <ScoreRing value={p.score.total} />
+          <Trend value={p.score.trend ?? 0} />
           <dl className="hero__axes">
             {[potential, opportunity, access].map((a) => (
               <div key={a.label}>
