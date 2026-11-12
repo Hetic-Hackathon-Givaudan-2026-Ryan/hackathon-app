@@ -1,71 +1,80 @@
-import type { Prospect, SignalType } from '../types';
-import { levelLabel, scoreLevel } from '../lib/format';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from 'react';
 
-export const signalLabels: Record<SignalType, string> = {
-  lancement: 'Lancement produit',
-  levee: 'Levée de fonds',
-  recrutement: 'Recrutement',
-  usine: 'Nouveau site',
-  fournisseur: 'Fournisseurs',
-  salon: 'Salon',
-};
+// Ferme un panneau (popover, menu) sur Échap ou sur un clic en dehors.
+// Échap rend le focus au bouton qui l'a ouvert.
+export function useDismiss(
+  open: boolean,
+  close: () => void,
+  refs: RefObject<HTMLElement | null>[],
+  trigger: RefObject<HTMLElement | null>,
+) {
+  // Dernières valeurs, lues par les écouteurs sans les rebrancher à chaque rendu
+  const latest = useRef({ close, refs, trigger });
+  useEffect(() => {
+    latest.current = { close, refs, trigger };
+  });
 
-export function ScorePill({ score }: { score: number }) {
-  const level = scoreLevel(score);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      latest.current.close();
+      latest.current.trigger.current?.focus();
+    };
+    const onPointer = (e: PointerEvent) => {
+      const target = e.target as Node;
+      const inside = latest.current.refs.some((r) =>
+        r.current?.contains(target),
+      );
+      if (!inside) latest.current.close();
+    };
+    document.addEventListener('keydown', onKey);
+    document.addEventListener('pointerdown', onPointer);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('pointerdown', onPointer);
+    };
+  }, [open]);
+}
+
+// Texte avec **gras**, utilisé par la synthèse « À retenir »
+export function RichText({ text }: { text: string }) {
   return (
-    <span
-      className={`score score--${level}`}
-      title={`Potentiel ${levelLabel[level]}`}
-    >
-      <b>{score}</b>
-      <small>/100</small>
-    </span>
+    <>
+      {text
+        .split(/(\*\*[^*]+\*\*)/)
+        .map((part, i) =>
+          part.startsWith('**') ? (
+            <strong key={i}>{part.slice(2, -2)}</strong>
+          ) : (
+            part
+          ),
+        )}
+    </>
   );
 }
 
-export function Evolution({ value }: { value: number }) {
-  const kind = value > 0 ? 'up' : value < 0 ? 'down' : 'flat';
-  const arrow = value > 0 ? '▲' : value < 0 ? '▼' : '–';
-  return (
-    <span className={`evo evo--${kind}`}>
-      <i aria-hidden="true">{arrow}</i>
-      {value > 0 ? `+${value}` : value}
-    </span>
-  );
-}
-
-const initials = (name: string) =>
-  name
-    .replace(/[’']/g, ' ')
-    .split(/\s+/)
-    .filter((w) => w.length > 2 || /^[A-Z]/.test(w))
-    .slice(0, 2)
-    .map((w) => w[0].toUpperCase())
-    .join('');
-
-export function CompanyLogo({
-  prospect,
-  size = 'sm',
-}: {
-  prospect: Prospect;
-  size?: 'sm' | 'lg';
-}) {
-  return (
-    <span className={`logo logo--${size}`} aria-hidden="true">
-      {initials(prospect.name)}
-    </span>
-  );
-}
-
-export function SignalChip({ type }: { type: SignalType }) {
-  return <span className="chip">{signalLabels[type]}</span>;
-}
-
-export function ScoreRing({ score }: { score: number }) {
-  const r = 42;
+// Anneau du score, qui se remplit à l'arrivée sur la fiche
+export function ScoreRing({ value }: { value: number }) {
+  const r = 44;
   const c = 2 * Math.PI * r;
+  const [shown, setShown] = useState(0);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setShown(value));
+    return () => cancelAnimationFrame(id);
+  }, [value]);
+
   return (
-    <figure className="ring" aria-label={`Score de maturité ${score} sur 100`}>
+    <div className="ring" role="img" aria-label={`Score ${value} sur 100`}>
       <svg viewBox="0 0 100 100" aria-hidden="true">
         <circle className="ring__track" cx="50" cy="50" r={r} />
         <circle
@@ -73,14 +82,68 @@ export function ScoreRing({ score }: { score: number }) {
           cx="50"
           cy="50"
           r={r}
-          strokeDasharray={`${(score / 100) * c} ${c}`}
+          strokeDasharray={`${(shown / 100) * c} ${c}`}
         />
       </svg>
-      <figcaption>
-        <b>{score}</b>
-        <small>score</small>
-      </figcaption>
-    </figure>
+      <span className="ring__label" aria-hidden="true">
+        <b>{value}</b>
+        <small>/100</small>
+      </span>
+    </div>
+  );
+}
+
+// Barre de progression d'un critère du score
+export function Meter({
+  value,
+  max,
+  label,
+}: {
+  value: number;
+  max: number;
+  label: string;
+}) {
+  return (
+    <span
+      className="meter"
+      role="meter"
+      aria-valuenow={value}
+      aria-valuemin={0}
+      aria-valuemax={max}
+      aria-label={label}
+    >
+      <i style={{ width: `${(value / max) * 100}%` }}></i>
+    </span>
+  );
+}
+
+// Notifications discrètes en bas de l'écran, lues par les lecteurs d'écran
+const ToastContext = createContext<(message: string) => void>(() => {});
+export const useToast = () => useContext(ToastContext);
+
+export function ToastProvider({ children }: { children: ReactNode }) {
+  const [toast, setToast] = useState<{ id: number; message: string }>();
+  const notify = useCallback(
+    (message: string) => setToast({ id: Date.now(), message }),
+    [],
+  );
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(undefined), 2800);
+    return () => clearTimeout(t);
+  }, [toast]);
+
+  return (
+    <ToastContext.Provider value={notify}>
+      {children}
+      <div className="toast-zone" role="status" aria-live="polite">
+        {toast && (
+          <div key={toast.id} className="toast">
+            {toast.message}
+          </div>
+        )}
+      </div>
+    </ToastContext.Provider>
   );
 }
 

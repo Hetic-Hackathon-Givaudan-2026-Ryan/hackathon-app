@@ -1,67 +1,85 @@
-import { useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router';
+import { useMemo } from 'react';
+import { useSearchParams } from 'react-router';
 import type { Prospect } from '../types';
-import { getProspects } from '../data/api';
-import { isNewSignal, money } from '../lib/format';
+import { daysAgo, getProspects, isRecent } from '../data/api';
+import { plural, signalDate } from '../lib/format';
 import { useData } from '../lib/useData';
-import ProspectTable, { companyColumn } from '../components/ProspectTable';
-import { Evolution, Loading, ScorePill } from '../components/ui';
+import FilterMenu from '../components/FilterMenu';
+import ProspectTable, { columns } from '../components/ProspectTable';
+import { Loading } from '../components/ui';
 
-type SortKey = 'name' | 'sector' | 'arr' | 'evolution' | 'score';
+const PAGE = 8;
 
-// Filtres rapides, ouverts depuis les cartes du tableau de bord (?filtre=...)
-const presets = {
-  signaux: {
-    label: 'Nouveaux signaux',
-    test: (p: Prospect) => p.signals.some((s) => isNewSignal(s.date)),
+const sorts = {
+  score: {
+    label: 'Score',
+    fn: (a: Prospect, b: Prospect) => b.score.total - a.score.total,
   },
-  potentiel: { label: 'Potentiel élevé', test: (p: Prospect) => p.score >= 80 },
-  actions: { label: 'Actions prioritaires', test: (p: Prospect) => p.priority },
+  nom: {
+    label: 'Nom',
+    fn: (a: Prospect, b: Prospect) => a.name.localeCompare(b.name, 'fr'),
+  },
+  signal: {
+    label: 'Dernier signal',
+    fn: (a: Prospect, b: Prospect) =>
+      (b.signals[0]?.date ?? '').localeCompare(a.signals[0]?.date ?? ''),
+  },
 };
-type PresetKey = keyof typeof presets;
-const isPreset = (v: string | null): v is PresetKey => !!v && v in presets;
+type SortKey = keyof typeof sorts;
 
+// Les filtres vivent dans l'adresse : on peut partager ou recharger une vue.
 export default function Prospects() {
   const { data: prospects } = useData('prospects', getProspects);
   const [params, setParams] = useSearchParams();
-  const filtre = params.get('filtre');
-  const preset = isPreset(filtre) ? filtre : undefined;
 
-  const [q, setQ] = useState('');
-  const [sector, setSector] = useState('');
-  const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({
-    key: 'score',
-    dir: -1,
-  });
-  const [filtersOpen, setFiltersOpen] = useState(false);
+  const q = params.get('q') ?? '';
+  const segments = params.getAll('segment');
+  const countries = params.getAll('pays');
+  const minScore = Number(params.get('score') ?? 0);
+  const recent = params.get('recent') === '1';
+  const sortParam = params.get('tri');
+  const sort: SortKey =
+    sortParam && sortParam in sorts ? (sortParam as SortKey) : 'score';
+  const page = Math.max(1, Number(params.get('page') ?? 1));
 
-  const sectors = useMemo(
-    () => [...new Set((prospects ?? []).map((p) => p.sector))].sort(),
-    [prospects],
+  const update = (changes: Record<string, string | string[] | null>) => {
+    const next = new URLSearchParams(params);
+    for (const [k, v] of Object.entries(changes)) {
+      next.delete(k);
+      for (const x of v === null ? [] : Array.isArray(v) ? v : [v])
+        if (x) next.append(k, x);
+    }
+    if (!('page' in changes)) next.delete('page');
+    setParams(next, { replace: true });
+  };
+
+  const all = useMemo(() => prospects ?? [], [prospects]);
+  const options = useMemo(
+    () => ({
+      segments: [...new Set(all.map((p) => p.segment))].sort(),
+      countries: [...new Set(all.map((p) => p.country))].sort((a, b) =>
+        a.localeCompare(b, 'fr'),
+      ),
+    }),
+    [all],
   );
 
-  const rows = useMemo(() => {
-    const query = q.trim().toLowerCase();
-    return (prospects ?? [])
-      .filter(
-        (p) =>
-          !query ||
-          `${p.name} ${p.sector} ${p.contact.name}`
-            .toLowerCase()
-            .includes(query),
-      )
-      .filter((p) => !sector || p.sector === sector)
-      .filter((p) => !preset || presets[preset].test(p))
-      .sort((a, b) => {
-        const va = a[sort.key];
-        const vb = b[sort.key];
-        const cmp =
-          typeof va === 'string'
-            ? va.localeCompare(vb as string, 'fr')
-            : va - (vb as number);
-        return cmp * sort.dir;
-      });
-  }, [prospects, q, sector, preset, sort]);
+  // Filtrer une liste de cette taille à chaque rendu ne coûte rien
+  const key = params.toString();
+  const query = q.trim().toLowerCase();
+  const rows = all
+    .filter(
+      (p) =>
+        !query ||
+        `${p.name} ${p.segment} ${p.activity} ${p.country} ${p.city}`
+          .toLowerCase()
+          .includes(query),
+    )
+    .filter((p) => !segments.length || segments.includes(p.segment))
+    .filter((p) => !countries.length || countries.includes(p.country))
+    .filter((p) => p.score.total >= minScore)
+    .filter((p) => !recent || (p.signals[0] && isRecent(p.signals[0].date)))
+    .sort(sorts[sort].fn);
 
   if (!prospects)
     return (
@@ -70,141 +88,164 @@ export default function Prospects() {
       </main>
     );
 
-  const toggleSort = (key: SortKey) =>
-    setSort((s) =>
-      s.key === key
-        ? { key, dir: s.dir === 1 ? -1 : 1 }
-        : { key, dir: key === 'name' || key === 'sector' ? 1 : -1 },
-    );
-
-  const sortHeader = (key: SortKey, label: string) => {
-    const active = sort.key === key;
-    return (
-      <button
-        className={`sort${active ? ' is-active' : ''}`}
-        onClick={() => toggleSort(key)}
-      >
-        {label}
-        <i aria-hidden="true">{active ? (sort.dir === 1 ? '↑' : '↓') : '↕'}</i>
-      </button>
-    );
-  };
-
-  const reset = () => {
-    setQ('');
-    setSector('');
-    setParams({});
-  };
+  const pages = Math.max(1, Math.ceil(rows.length / PAGE));
+  const current = Math.min(page, pages);
+  const visible = rows.slice((current - 1) * PAGE, current * PAGE);
+  const filtered =
+    q || segments.length || countries.length || minScore || recent;
+  const clear = () => setParams({}, { replace: true });
 
   return (
     <main className="page">
-      <div className="page__head">
-        <h1>Les prospects</h1>
-        <div className="tools">
-          <label className="search">
-            <span className="sr">Rechercher</span>
-            <input
-              id="q"
-              type="search"
-              placeholder="Entreprise, secteur, contact…"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-            />
-          </label>
+      <h1>Prospects</h1>
+      <p className="lede">
+        {plural(all.length, 'prospect')} suivis · triés par{' '}
+        {sorts[sort].label.toLowerCase()}
+      </p>
+
+      <div className="toolbar" role="search">
+        <label className="search">
+          <span className="sr">Rechercher une entreprise ou un secteur</span>
+          <input
+            type="search"
+            placeholder="Rechercher une entreprise, un secteur…"
+            value={q}
+            onChange={(e) => update({ q: e.target.value })}
+          />
+        </label>
+        <div className="toolbar__filters">
+          <FilterMenu
+            label="Segment"
+            summary={
+              segments.length === 1
+                ? segments[0]
+                : `Segment · ${segments.length}`
+            }
+            multiple
+            options={options.segments.map((s) => ({ value: s, label: s }))}
+            selected={segments}
+            onChange={(v) => update({ segment: v })}
+          />
+          <FilterMenu
+            label="Pays"
+            summary={
+              countries.length === 1
+                ? countries[0]
+                : `Pays · ${countries.length}`
+            }
+            multiple
+            options={options.countries.map((c) => ({ value: c, label: c }))}
+            selected={countries}
+            onChange={(v) => update({ pays: v })}
+          />
+          <FilterMenu
+            label="Score"
+            summary={`Score ≥ ${minScore}`}
+            options={[60, 70, 80, 90].map((n) => ({
+              value: String(n),
+              label: `${n} et plus`,
+            }))}
+            selected={minScore ? [String(minScore)] : []}
+            onChange={(v) => update({ score: v })}
+          />
           <button
-            className={`btn${filtersOpen ? ' is-on' : ''}`}
-            aria-expanded={filtersOpen}
-            onClick={() => setFiltersOpen(!filtersOpen)}
+            type="button"
+            className={`pill${recent ? ' is-set' : ''}`}
+            aria-pressed={recent}
+            onClick={() => update({ recent: recent ? null : '1' })}
           >
-            Filtrer
+            Signal récent
           </button>
+          {filtered ? (
+            <button type="button" className="link reset" onClick={clear}>
+              Effacer
+            </button>
+          ) : null}
+        </div>
+        <div className="toolbar__sort">
+          <span className="muted">Trier par :</span>
+          <FilterMenu
+            variant="text"
+            align="end"
+            label={`${sorts[sort].label} ↓`}
+            options={(Object.keys(sorts) as SortKey[]).map((k) => ({
+              value: k,
+              label: sorts[k].label,
+            }))}
+            selected={[sort]}
+            onChange={(v) =>
+              update({ tri: v[0] && v[0] !== 'score' ? v[0] : null })
+            }
+          />
         </div>
       </div>
 
-      {(filtersOpen || preset) && (
-        <div className="filters">
-          <label>
-            Secteur
-            <select
-              id="sector"
-              value={sector}
-              onChange={(e) => setSector(e.target.value)}
-            >
-              <option value="">Tous les secteurs</option>
-              {sectors.map((s) => (
-                <option key={s}>{s}</option>
-              ))}
-            </select>
-          </label>
-          <div className="presets" role="group" aria-label="Filtres rapides">
-            {(Object.keys(presets) as PresetKey[]).map((k) => (
-              <Link
-                key={k}
-                className={`chip-toggle${preset === k ? ' is-on' : ''}`}
-                to={preset === k ? '/prospects' : `/prospects?filtre=${k}`}
-              >
-                {presets[k].label}
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <p className="count">
-        {rows.length} prospect{rows.length > 1 ? 's' : ''}
-        {preset && ` · ${presets[preset].label}`}
+      <p className="sr" aria-live="polite">
+        {plural(rows.length, 'résultat')}
       </p>
 
       <ProspectTable
-        rows={rows}
+        caption="Base des prospects"
+        animateKey={key}
+        rows={visible}
         empty={
           <>
             Aucun prospect ne correspond à ces critères.{' '}
-            <button className="link" onClick={reset}>
+            <button type="button" className="link" onClick={clear}>
               Effacer les filtres
             </button>
           </>
         }
-        columns={[
-          companyColumn(sortHeader('name', 'Entreprise')),
+        cols={[
+          columns.name,
+          columns.segment,
+          columns.zone,
+          columns.size,
+          { key: 'reach', label: 'Portée', cell: (p) => p.reach },
+          columns.score,
           {
-            key: 'sector',
-            label: sortHeader('sector', 'Secteur'),
-            mobileLabel: 'Secteur',
-            cell: (p) => p.sector,
-          },
-          {
-            key: 'arr',
-            label: sortHeader('arr', 'ARR estimé'),
-            mobileLabel: 'ARR estimé',
-            className: 'num',
-            cell: (p) => money(p.arr),
-          },
-          {
-            key: 'contact',
-            label: 'Contact',
-            mobileLabel: 'Contact',
-            cell: (p) => (
-              <span className="contact">
-                <b>{p.contact.name}</b>
-                <small>{p.contact.role}</small>
-              </span>
-            ),
-          },
-          {
-            key: 'evolution',
-            label: sortHeader('evolution', 'Évolution'),
-            mobileLabel: 'Évolution',
-            cell: (p) => <Evolution value={p.evolution} />,
-          },
-          {
-            key: 'score',
-            label: sortHeader('score', 'Score'),
-            mobileLabel: 'Score',
-            cell: (p) => <ScorePill score={p.score} />,
+            key: 'signal',
+            label: 'Dernier signal',
+            cell: (p) => {
+              const s = p.signals[0];
+              return s ? (
+                <>
+                  {s.kind} · {signalDate(s.date, daysAgo(s.date))}
+                </>
+              ) : (
+                <span className="muted">—</span>
+              );
+            },
           },
         ]}
       />
+
+      {rows.length > 0 && (
+        <nav className="pager" aria-label="Pagination">
+          <span>
+            {(current - 1) * PAGE + 1}–{Math.min(current * PAGE, rows.length)}{' '}
+            sur {rows.length}
+          </span>
+          {current > 1 && (
+            <button
+              type="button"
+              className="link"
+              onClick={() => update({ page: String(current - 1) })}
+            >
+              ‹ Page précédente
+            </button>
+          )}
+          {current < pages && (
+            <button
+              type="button"
+              className="link"
+              onClick={() => update({ page: String(current + 1) })}
+            >
+              Page suivante ›
+            </button>
+          )}
+        </nav>
+      )}
     </main>
   );
 }
