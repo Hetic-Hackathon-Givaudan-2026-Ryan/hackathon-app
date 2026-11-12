@@ -3,12 +3,29 @@
 // le service de prospection local (dépôt Equipe-01), joint via le proxy /ia de
 // vite.config.ts. Pour un test local seulement : en production, le front passe
 // par l'API Express (ADR 0005).
+// Avec `npm run build:static` (VITE_DATA_SOURCE=static) : un export figé du
+// service IA (src/data/export.json, non versionné), pour envoyer un prototype
+// qui s'ouvre d'un double-clic, sans serveur.
 // Les pages n'importent que ces fonctions, jamais mock.ts directement.
 import type { Briefing, Prospect, SalesUser } from '../types';
 import { currentUser, prospects as mockProspects } from './mock';
 
-export const SOURCE: 'mock' | 'ia' =
-  import.meta.env.VITE_DATA_SOURCE === 'ia' ? 'ia' : 'mock';
+const source = import.meta.env.VITE_DATA_SOURCE;
+export const SOURCE: 'mock' | 'ia' | 'static' =
+  source === 'ia' || source === 'static' ? source : 'mock';
+
+// Export figé : chargé seulement s'il existe (glob vide sinon)
+const exported = Object.values(
+  import.meta.glob<{ default: StaticExport }>('./export.json', { eager: true }),
+)[0]?.default;
+
+export interface StaticExport {
+  generatedAt: string;
+  model: string;
+  dataset: string;
+  prospects: Prospect[];
+}
+export const STATIC_INFO = exported;
 
 // Date de référence de la démo, pour que « il y a 8 jours » reste vrai
 export const TODAY = '2026-11-12';
@@ -37,6 +54,7 @@ export async function getCurrentUser(): Promise<SalesUser> {
 
 export async function getProspects(): Promise<Prospect[]> {
   if (SOURCE === 'mock') return mockProspects;
+  if (SOURCE === 'static') return exported?.prospects ?? [];
   list ??= ia<Prospect[]>('/prospects').catch((e) => {
     list = undefined;
     throw e;
@@ -52,6 +70,7 @@ const pages = new Map<string, Promise<Prospect | undefined>>();
 
 export async function getProspect(id: string): Promise<Prospect | undefined> {
   if (SOURCE === 'mock') return mockProspects.find((p) => p.id === id);
+  if (SOURCE === 'static') return exported?.prospects.find((p) => p.id === id);
   let page = pages.get(id);
   if (!page) {
     page = ia<Prospect>(`/prospects/${encodeURIComponent(id)}`).catch((e) => {
@@ -96,6 +115,6 @@ export async function uploadDataset(file: File): Promise<DatasetInfo> {
 }
 
 export async function getDataset(): Promise<DatasetInfo | undefined> {
-  if (SOURCE === 'mock') return undefined;
+  if (SOURCE !== 'ia') return undefined;
   return ia<DatasetInfo>('/datasets');
 }

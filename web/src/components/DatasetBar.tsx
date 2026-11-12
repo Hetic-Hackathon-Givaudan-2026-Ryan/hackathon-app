@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { getDataset, SOURCE, uploadDataset } from '../data/api';
+import { getDataset, SOURCE, STATIC_INFO, uploadDataset } from '../data/api';
 import { useData } from '../lib/useData';
 import { useToast } from './ui';
 
@@ -10,6 +10,17 @@ export default function DatasetBar() {
   const input = useRef<HTMLInputElement>(null);
   const notify = useToast();
 
+  if (SOURCE === 'static' && STATIC_INFO)
+    return (
+      <div className="dataset">
+        <span className="tag tag--soft">Prototype</span>
+        <span className="muted">
+          {STATIC_INFO.dataset} · {STATIC_INFO.prospects.length} prospects ·
+          fiches rédigées par l’IA ({STATIC_INFO.model}) le{' '}
+          {new Date(STATIC_INFO.generatedAt).toLocaleDateString('fr-FR')}
+        </span>
+      </div>
+    );
   if (SOURCE !== 'ia') return null;
 
   const send = async (file: File) => {
