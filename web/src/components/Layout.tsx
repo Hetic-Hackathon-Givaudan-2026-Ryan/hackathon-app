@@ -1,24 +1,34 @@
-import { useState } from 'react';
-import { Link, NavLink, Outlet } from 'react-router';
+import { useEffect, useState } from 'react';
+import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { getCurrentUser } from '../data/api';
 import { useData } from '../lib/useData';
+import { ToastProvider } from './ui';
 
 const nav = [
   { to: '/', label: 'Tableau de bord' },
   { to: '/prospects', label: 'Prospects' },
+  { to: '/signaux', label: 'Signaux' },
 ];
-const soon = ['Alertes', 'Rapports'];
 
 export default function Layout() {
   const [open, setOpen] = useState(false);
   const { data: user } = useData('user', getCurrentUser);
+  const { pathname } = useLocation();
+
+  // Chaque page s'ouvre en haut, comme une navigation classique
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
 
   return (
-    <>
+    <ToastProvider>
+      <a className="skip" href="#contenu">
+        Aller au contenu
+      </a>
       <header className={`topbar${open ? ' is-open' : ''}`}>
         <div className="topbar__inner">
           <Link className="brand" to="/">
-            Givaudan<span>Prospect</span>
+            <b>Givaudan</b> · Copilote commercial
           </Link>
           <button
             className="menu-btn"
@@ -31,39 +41,33 @@ export default function Layout() {
             <span></span>
             <span></span>
           </button>
-          <nav id="mainnav" className="nav">
+          <nav id="mainnav" className="nav" aria-label="Navigation principale">
             {nav.map((n) => (
               <NavLink
                 key={n.to}
                 to={n.to}
                 end={n.to === '/'}
-                className={({ isActive }) =>
-                  `nav__item${isActive ? ' is-active' : ''}`
-                }
+                className="nav__item"
                 onClick={() => setOpen(false)}
               >
                 {n.label}
               </NavLink>
             ))}
-            {soon.map((label) => (
-              <span key={label} className="nav__item nav__item--soon">
-                {label}
-                <em>bientôt</em>
-              </span>
-            ))}
           </nav>
           {user && (
             <div className="user">
               <span className="user__name">{user.firstName}</span>
-              <span className="avatar" aria-hidden="true">
-                {user.firstName[0]}
-                {user.lastName[0]}
-              </span>
+              <span className="avatar" aria-hidden="true"></span>
             </div>
           )}
         </div>
       </header>
-      <Outlet />
-    </>
+      <div id="contenu" className="route" key={pathname}>
+        <Outlet />
+      </div>
+      <footer className="foot">
+        Wireframe v2 · données fictives pour la démo · G01 Arom’hetic
+      </footer>
+    </ToastProvider>
   );
 }
