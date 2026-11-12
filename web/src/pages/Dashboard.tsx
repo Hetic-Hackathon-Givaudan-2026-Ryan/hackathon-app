@@ -1,7 +1,6 @@
 import { Link } from 'react-router';
 import { getBriefing, TODAY } from '../data/api';
 import { useData } from '../lib/useData';
-import CopilotBox from '../components/CopilotBox';
 import ProspectTable, { columns } from '../components/ProspectTable';
 import { LoadError, Loading } from '../components/ui';
 
@@ -64,8 +63,6 @@ export default function Dashboard() {
           ]}
         />
       </section>
-
-      <CopilotBox prospects={priorities} />
     </main>
   );
 }
