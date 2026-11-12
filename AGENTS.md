@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Application de questions-réponses : un front Vite (`web/`), une API Express (`api/`), PostgreSQL 17 (`db/`) et un service IA Python séparé (`ia/`), dans un Dev Container VS Code. Présentation et installation : `README.md`.
+Dashboard de prospection pour les commerciaux : un front React + TypeScript servi par Vite (`web/`), une API Express (`api/`), PostgreSQL 17 (`db/`) et un service IA Python séparé (`ia/`), dans un Dev Container VS Code. Présentation et installation : `README.md`.
 
 ## Lancer
 
@@ -22,7 +22,7 @@ Toutes les commandes se lancent dans le Dev Container (`/workspace`), pas sur la
 ## Décisions
 
 - Lis `docs/adr/` avant d'ajouter une dépendance ou de changer de composant.
-- Ne contredis pas un ADR au statut « acceptée » : Dev Container (0001), PostgreSQL et pas SQLite (0002), `openapi.yaml` écrit à la main (0003).
+- Ne contredis pas un ADR au statut « acceptée » : Dev Container (0001), PostgreSQL et pas SQLite (0002), `openapi.yaml` écrit à la main (0003), front en React + TypeScript (0004).
 - S'il faut en changer, propose un nouvel ADR au statut « proposée », puis arrête-toi.
 - Le choix entre `ia/` et l'appel direct depuis l'API est ouvert (ticket #11) : n'en supprime aucun des deux.
 
