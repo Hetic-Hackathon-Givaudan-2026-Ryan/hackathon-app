@@ -1,0 +1,12 @@
+# Contexte des builds api/ et web/ (racine du dépôt)
+.git
+**/node_modules
+**/dist
+**/.env
+db/data
+ia
+docs
+**/.venv
+**/__pycache__
+# Export figé du mode « static », jamais dans l'image de démo
+web/src/data/export.json

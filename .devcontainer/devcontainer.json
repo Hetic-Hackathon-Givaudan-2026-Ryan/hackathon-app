@@ -3,6 +3,9 @@
   // VS Code démarre toute la stack, puis s'attache au service « dev »
   "dockerComposeFile": ["../compose.yaml"],
   "service": "dev",
+  // Seulement le poste de travail et sa base (depends_on) : le service « dev »
+  // est dans le profil « dev » de compose.yaml, hors de la démo `docker compose up`
+  "runServices": ["dev"],
   "workspaceFolder": "/workspace",
   "shutdownAction": "stopCompose",
   "remoteUser": "node",
