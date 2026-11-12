@@ -3,10 +3,16 @@ import { getBriefing } from '../data/api';
 import { shortDate } from '../lib/format';
 import { useData } from '../lib/useData';
 import ProspectTable, { columns } from '../components/ProspectTable';
-import { Loading } from '../components/ui';
+import { LoadError, Loading } from '../components/ui';
 
 export default function Dashboard() {
-  const { data } = useData('briefing', getBriefing);
+  const { data, error } = useData('briefing', getBriefing);
+  if (error)
+    return (
+      <main className="page">
+        <LoadError error={error} />
+      </main>
+    );
   if (!data)
     return (
       <main className="page">
@@ -20,8 +26,8 @@ export default function Dashboard() {
     <main className="page">
       <h1>Bonjour {user.firstName}</h1>
       <p className="lede">
-        {signals.length} nouveaux signaux depuis lundi · {priorities.length}{' '}
-        prospects à prioriser cette semaine
+        {signals.length} nouveaux signaux ces 3 dernières semaines ·{' '}
+        {priorities.length} prospects à prioriser cette semaine
       </p>
 
       <section className="block" aria-labelledby="signaux">
@@ -31,6 +37,11 @@ export default function Dashboard() {
             Tous les signaux
           </Link>
         </div>
+        {signals.length === 0 && (
+          <p className="muted">
+            Aucun signal daté de moins de 3 semaines dans ce jeu de données.
+          </p>
+        )}
         <ul className="cards">
           {signals.map(({ prospect, signal }, i) => (
             <li

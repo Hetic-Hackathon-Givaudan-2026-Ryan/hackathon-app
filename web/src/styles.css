@@ -1327,3 +1327,38 @@ h1 {
     transition-delay: 0ms !important;
   }
 }
+
+/* ---------- Mode IA locale ---------- */
+.loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--line);
+  border-top-color: var(--ink);
+  border-radius: 50%;
+  animation: spin 800ms linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.dataset {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  font-size: 12px;
+}
+.dataset .link {
+  font-size: 12px;
+}
+.dataset .link:disabled {
+  cursor: progress;
+  opacity: 0.6;
+}

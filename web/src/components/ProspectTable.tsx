@@ -21,7 +21,7 @@ export const columns = {
   zone: {
     key: 'zone',
     label: 'Zone',
-    cell: (p) => `${p.country} · ${p.city}`,
+    cell: (p) => [p.country, p.city].filter(Boolean).join(' · '),
   },
   size: { key: 'size', label: 'Taille', cell: (p) => p.size },
   score: {

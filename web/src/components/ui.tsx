@@ -147,6 +147,24 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   );
 }
 
-export function Loading() {
-  return <p className="muted">Chargement…</p>;
+export function Loading({
+  children = 'Chargement…',
+}: {
+  children?: ReactNode;
+}) {
+  return (
+    <p className="loading muted" role="status">
+      <span className="spinner" aria-hidden="true"></span>
+      {children}
+    </p>
+  );
+}
+
+export function LoadError({ error }: { error: Error }) {
+  return (
+    <p className="muted" role="alert">
+      Impossible de charger les données : {error.message}. Le service IA est-il
+      lancé sur le port 8000 ?
+    </p>
+  );
 }

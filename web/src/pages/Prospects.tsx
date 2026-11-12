@@ -4,9 +4,10 @@ import type { Prospect } from '../types';
 import { daysAgo, getProspects, isRecent } from '../data/api';
 import { plural, signalDate } from '../lib/format';
 import { useData } from '../lib/useData';
+import DatasetBar from '../components/DatasetBar';
 import FilterMenu from '../components/FilterMenu';
 import ProspectTable, { columns } from '../components/ProspectTable';
-import { Loading } from '../components/ui';
+import { LoadError, Loading } from '../components/ui';
 
 const PAGE = 8;
 
@@ -29,7 +30,7 @@ type SortKey = keyof typeof sorts;
 
 // Les filtres vivent dans l'adresse : on peut partager ou recharger une vue.
 export default function Prospects() {
-  const { data: prospects } = useData('prospects', getProspects);
+  const { data: prospects, error } = useData('prospects', getProspects);
   const [params, setParams] = useSearchParams();
 
   const q = params.get('q') ?? '';
@@ -81,6 +82,13 @@ export default function Prospects() {
     .filter((p) => !recent || (p.signals[0] && isRecent(p.signals[0].date)))
     .sort(sorts[sort].fn);
 
+  if (error)
+    return (
+      <main className="page">
+        <DatasetBar />
+        <LoadError error={error} />
+      </main>
+    );
   if (!prospects)
     return (
       <main className="page">
@@ -97,6 +105,7 @@ export default function Prospects() {
 
   return (
     <main className="page">
+      <DatasetBar />
       <h1>Prospects</h1>
       <p className="lede">
         {plural(all.length, 'prospect')} suivis · triés par{' '}

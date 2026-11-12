@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:ia": "vite --mode ia",
     "build": "tsc && vite build"
   },
   "devDependencies": {

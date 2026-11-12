@@ -1,10 +1,11 @@
 import { useRef, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import type { Contact, Question } from '../types';
-import { getProspect, getProspects } from '../data/api';
+import { getProspect, getProspects, SOURCE } from '../data/api';
 import { useData } from '../lib/useData';
 import ScorePopover from '../components/ScorePopover';
 import {
+  LoadError,
   Loading,
   RichText,
   ScoreRing,
@@ -69,7 +70,11 @@ function ContactMenu({ contact }: { contact: Contact }) {
 
 export default function ProspectDetail() {
   const { id = '' } = useParams();
-  const { data: p, loading } = useData(`prospect-${id}`, () => getProspect(id));
+  const {
+    data: p,
+    loading,
+    error,
+  } = useData(`prospect-${id}`, () => getProspect(id));
   const { data: all } = useData('prospects', getProspects);
   const notify = useToast();
   const [linked, setLinked] = useState<Question['links'] | null>(null);
@@ -79,7 +84,17 @@ export default function ProspectDetail() {
   if (loading)
     return (
       <main className="page">
-        <Loading />
+        <Loading>
+          {SOURCE === 'ia'
+            ? 'L’IA prépare la fiche… (jusqu’à 45 s la première fois)'
+            : 'Chargement…'}
+        </Loading>
+      </main>
+    );
+  if (error)
+    return (
+      <main className="page">
+        <LoadError error={error} />
       </main>
     );
   if (!p)
@@ -124,9 +139,18 @@ export default function ProspectDetail() {
         <div className="hero__id">
           <h1>{p.name}</h1>
           <p className="hero__meta">
-            {p.segment} · {p.activity} · {p.country} · {p.city} · {p.size}
-            {p.revenue && ` (CA estimé ${p.revenue})`} · Portée{' '}
-            {p.reach.toLowerCase()} · {p.website}
+            {/* Les champs absents d'un jeu de données importé sont omis */}
+            {[
+              p.segment,
+              p.activity,
+              p.country,
+              p.city,
+              p.size + (p.revenue ? ` (CA estimé ${p.revenue})` : ''),
+              `Portée ${p.reach.toLowerCase()}`,
+              p.website,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
           </p>
           <p className="hero__why">
             <b>Pourquoi maintenant :</b> {p.why}
