@@ -1,5 +1,5 @@
-import { useRef, useState } from 'react';
-import { Link, useParams } from 'react-router';
+import { useEffect, useRef, useState } from 'react';
+import { Link, useLocation, useParams } from 'react-router';
 import type { Contact, Question } from '../types';
 import { getProspect, getProspects, SOURCE } from '../data/api';
 import { useData } from '../lib/useData';
@@ -8,6 +8,7 @@ import {
   LoadError,
   Loading,
   RichText,
+  CompanyMark,
   ScoreRing,
   useDismiss,
   useToast,
@@ -94,6 +95,16 @@ export default function ProspectDetail() {
   const [linked, setLinked] = useState<Question['links'] | null>(null);
   const [flash, setFlash] = useState(false);
   const recapRef = useRef<HTMLElement>(null);
+  const { hash } = useLocation();
+
+  // Arrivée depuis le copilote : faire défiler jusqu'au bloc demandé
+  useEffect(() => {
+    if (!p || !hash) return;
+    const el = document.getElementById(
+      hash === '#interlocuteurs' ? 'interlocuteurs-bloc' : 'recap-bloc',
+    );
+    el?.scrollIntoView({ block: 'start' });
+  }, [p, hash]);
 
   if (loading)
     return (
@@ -142,14 +153,12 @@ export default function ProspectDetail() {
     <main className="page">
       <nav className="crumbs" aria-label="Fil d’Ariane">
         <Link to="/prospects">Prospects</Link>
-        <span aria-hidden="true">›</span>
+        <span aria-hidden="true">/</span>
         <span aria-current="page">{p.name}</span>
       </nav>
 
       <section className="hero">
-        <div className="hero__logo" aria-hidden="true">
-          Logo
-        </div>
+        <CompanyMark name={p.name} size="lg" />
         <div className="hero__id">
           <h1>{p.name}</h1>
           <p className="hero__meta">
@@ -171,12 +180,19 @@ export default function ProspectDetail() {
           </p>
         </div>
         <div className="hero__score">
-          <ScoreRing value={p.score.total} />
+          <ScoreRing score={p.score} />
+          <p className="hero__rank">
+            {p.score.rank === 1 ? '1er' : `${p.score.rank}e`} sur{' '}
+            {all?.length ?? '…'}
+          </p>
           <Trend value={p.score.trend ?? 0} />
           <dl className="hero__axes">
-            {[potential, opportunity, access].map((a) => (
+            {[potential, opportunity, access].map((a, i) => (
               <div key={a.label}>
-                <dt>{a.label}</dt>
+                <dt>
+                  <span className={`dot axis-${i}`} aria-hidden="true"></span>
+                  {a.label}
+                </dt>
                 <dd>
                   {a.value}/{a.max}
                 </dd>
@@ -205,13 +221,14 @@ export default function ProspectDetail() {
         <div className="detail__main">
           <section
             ref={recapRef}
+            id="recap-bloc"
             tabIndex={-1}
             className={`panel${flash ? ' is-flash' : ''}`}
             aria-labelledby="recap"
           >
             <div className="panel__head">
               <h2 id="recap">À retenir avant votre rendez-vous</h2>
-              <span className="tag tag--soft">
+              <span className="tag tag--accent">
                 Généré par l’IA · {p.score.sources} sources · à vérifier
               </span>
             </div>
@@ -279,6 +296,7 @@ export default function ProspectDetail() {
 
         <aside className="detail__side">
           <section
+            id="interlocuteurs-bloc"
             className={`panel${linked === 'contacts' ? ' is-linked' : ''}`}
             aria-labelledby="interlocuteurs"
           >
@@ -291,10 +309,10 @@ export default function ProspectDetail() {
                     <div>
                       <p className="contacts__name">
                         <b>{c.name}</b>
-                        {c.recommended && (
-                          <span className="tag tag--dark">Recommandé</span>
-                        )}
                       </p>
+                      {c.recommended && (
+                        <span className="tag tag--accent">Recommandé</span>
+                      )}
                       <p>
                         {c.role}
                         {c.since && ` · ${c.since}`}

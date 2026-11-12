@@ -88,6 +88,7 @@ export interface Prospect {
 export interface SalesUser {
   firstName: string;
   lastName: string;
+  role?: string; // ex. KAM · Europe
 }
 
 export interface Briefing {

@@ -77,11 +77,12 @@ export default function ScorePopover({
           </button>
         </div>
 
-        {score.axes.map((axis) => (
-          <section key={axis.label} className="axis">
+        {score.axes.map((axis, i) => (
+          <section key={axis.label} className={`axis axis--${i}`}>
             <h3>
-              {axis.label}{' '}
-              <span>
+              <span className={`dot axis-${i}`} aria-hidden="true"></span>
+              {axis.label}
+              <span className="axis__total">
                 {axis.value}/{axis.max}
               </span>
             </h3>
@@ -112,10 +113,10 @@ export default function ScorePopover({
 
         <button
           type="button"
-          className="link"
+          className="link link--accent"
           onClick={() => notify('La page de méthode arrive bientôt')}
         >
-          Comment ce score est-il calculé ?
+          Comment ce score est-il calculé ? →
         </button>
       </div>
     </div>

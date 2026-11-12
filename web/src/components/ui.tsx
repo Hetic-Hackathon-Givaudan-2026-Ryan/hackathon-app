@@ -8,6 +8,7 @@ import {
   type ReactNode,
   type RefObject,
 } from 'react';
+import type { ScoreDetail } from '../types';
 
 // Ferme un panneau (popover, menu) sur Échap ou sur un clic en dehors.
 // Échap rend le focus au bouton qui l'a ouvert.
@@ -63,33 +64,68 @@ export function RichText({ text }: { text: string }) {
   );
 }
 
-// Anneau du score, qui se remplit à l'arrivée sur la fiche
-export function ScoreRing({ value }: { value: number }) {
-  const r = 44;
+// Anneau du score en trois arcs (Potentiel, Opportunité, Accessibilité), chacun
+// de la longueur de ses points sur 100. Il se remplit à l'arrivée sur la fiche.
+export function ScoreRing({ score }: { score: ScoreDetail }) {
+  const r = 42;
   const c = 2 * Math.PI * r;
-  const [shown, setShown] = useState(0);
+  const gap = 1.6; // espace entre deux arcs, en points sur 100
+  const [shown, setShown] = useState(false);
   useEffect(() => {
-    const id = requestAnimationFrame(() => setShown(value));
+    const id = requestAnimationFrame(() => setShown(true));
     return () => cancelAnimationFrame(id);
-  }, [value]);
+  }, []);
+
+  const arcs = score.axes.map((axis, i) => ({
+    key: axis.label,
+    i,
+    // l'arc commence après les points des axes précédents
+    start: score.axes.slice(0, i).reduce((sum, a) => sum + a.value, 0),
+    len: Math.max(0, axis.value - (axis.value > 0 ? gap : 0)),
+  }));
 
   return (
-    <div className="ring" role="img" aria-label={`Score ${value} sur 100`}>
+    <div
+      className="ring"
+      role="img"
+      aria-label={`Score ${score.total} sur 100 : ${score.axes
+        .map((a) => `${a.label} ${a.value} sur ${a.max}`)
+        .join(', ')}`}
+    >
       <svg viewBox="0 0 100 100" aria-hidden="true">
         <circle className="ring__track" cx="50" cy="50" r={r} />
-        <circle
-          className="ring__value"
-          cx="50"
-          cy="50"
-          r={r}
-          strokeDasharray={`${(shown / 100) * c} ${c}`}
-        />
+        {arcs.map((a) => (
+          <circle
+            key={a.key}
+            className={`ring__arc axis-${a.i}`}
+            cx="50"
+            cy="50"
+            r={r}
+            strokeDasharray={`${shown ? (a.len / 100) * c : 0} ${c}`}
+            strokeDashoffset={-(a.start / 100) * c}
+          />
+        ))}
       </svg>
       <span className="ring__label" aria-hidden="true">
-        <b>{value}</b>
+        <b>{score.total}</b>
         <small>/100</small>
       </span>
     </div>
+  );
+}
+
+// Barre tricolore du score, utilisée dans les listes
+export function ScoreBars({ score }: { score: ScoreDetail }) {
+  return (
+    <span className="bars" aria-hidden="true">
+      {score.axes.map((a, i) => (
+        <i
+          key={a.label}
+          className={`axis-${i}`}
+          style={{ flexBasis: `${a.value}%` }}
+        ></i>
+      ))}
+    </span>
   );
 }
 
@@ -169,17 +205,11 @@ export function LoadError({ error }: { error: Error }) {
   );
 }
 
-// Score mis en avant : valeur en gras et tendance fléchée (verte si ça monte,
-// rouge si ça baisse). La flèche et le signe portent le sens, pas seulement la couleur.
-export function ScoreBadge({
-  total,
-  trend = 0,
-  size = 'md',
-}: {
-  total: number;
-  trend?: number;
-  size?: 'md' | 'lg';
-}) {
+// Score d'une ligne de liste : chiffre en police mono, barre tricolore, et
+// tendance fléchée (verte si ça monte, rouge si ça baisse). La flèche et le
+// signe portent le sens, pas seulement la couleur.
+export function ScoreBadge({ score }: { score: ScoreDetail }) {
+  const trend = score.trend ?? 0;
   const kind = trend > 0 ? 'up' : trend < 0 ? 'down' : 'flat';
   const label =
     trend > 0
@@ -189,15 +219,35 @@ export function ScoreBadge({
         : 'stable';
   return (
     <span
-      className={`score-badge score-badge--${size}`}
-      aria-label={`Score ${total} sur 100, ${label}`}
+      className="score-badge"
+      aria-label={`Score ${score.total} sur 100, ${label}`}
     >
-      <b>{total}</b>
-      <small>/100</small>
-      <span className={`trend trend--${kind}`} aria-hidden="true">
-        {kind === 'up' ? '▲' : kind === 'down' ? '▼' : '–'}
-        {trend !== 0 && <i>{Math.abs(trend)}</i>}
+      <span className="score-badge__top">
+        <b>{score.total}</b>
+        <small>/100</small>
+        {trend !== 0 && (
+          <span className={`trend trend--${kind}`} aria-hidden="true">
+            {kind === 'up' ? '▲' : '▼'}
+            <i>{Math.abs(trend)}</i>
+          </span>
+        )}
       </span>
+      <ScoreBars score={score} />
+    </span>
+  );
+}
+
+// Pavé à l'initiale de l'entreprise, en attendant les logos
+export function CompanyMark({
+  name,
+  size = 'sm',
+}: {
+  name: string;
+  size?: 'sm' | 'lg';
+}) {
+  return (
+    <span className={`mark mark--${size}`} aria-hidden="true">
+      {name.trim()[0]?.toUpperCase()}
     </span>
   );
 }

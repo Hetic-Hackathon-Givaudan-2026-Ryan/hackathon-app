@@ -12,7 +12,11 @@ import type {
   Takeaway,
 } from '../types';
 
-export const currentUser = { firstName: 'Anne Marie', lastName: 'Lefèvre' };
+export const currentUser = {
+  firstName: 'Anne Marie',
+  lastName: 'Lefèvre',
+  role: 'KAM · Europe',
+};
 
 const sig = (
   kind: SignalKind,
