@@ -1,5 +1,8 @@
 // Point d'accès unique aux données du dashboard.
-// Par défaut : données mockées. Avec `npm run dev:ia` (VITE_DATA_SOURCE=ia) :
+// Par défaut : l'API Express (/api/prospects), qui lit PostgreSQL et demande
+// au service IA de régénérer une fiche. Avec `npm run dev:mock`
+// (VITE_DATA_SOURCE=mock) : les données mockées de mock.ts, sans serveur.
+// Avec `npm run dev:ia` (VITE_DATA_SOURCE=ia) :
 // le service de prospection local (dépôt Equipe-01), joint via le proxy /ia de
 // vite.config.ts. Pour un test local seulement : en production, le front passe
 // par l'API Express (ADR 0005).
@@ -11,8 +14,8 @@ import type { Briefing, Prospect, SalesUser } from '../types';
 import { currentUser, prospects as mockProspects } from './mock';
 
 const source = import.meta.env.VITE_DATA_SOURCE;
-export const SOURCE: 'mock' | 'ia' | 'static' =
-  source === 'ia' || source === 'static' ? source : 'mock';
+export const SOURCE: 'api' | 'mock' | 'ia' | 'static' =
+  source === 'mock' || source === 'ia' || source === 'static' ? source : 'api';
 
 // Export figé : chargé seulement s'il existe (glob vide sinon)
 const exported = Object.values(
@@ -36,6 +39,15 @@ export const daysAgo = (iso: string) =>
 export const isRecent = (iso: string) =>
   !!iso && daysAgo(iso) >= 0 && daysAgo(iso) <= RECENT_DAYS;
 
+async function api<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`/api${path}`, init);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? `API : erreur ${res.status}`);
+  }
+  return res.json();
+}
+
 async function ia<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`/ia${path}`, init);
   if (!res.ok) {
@@ -55,6 +67,7 @@ export async function getCurrentUser(): Promise<SalesUser> {
 export async function getProspects(): Promise<Prospect[]> {
   if (SOURCE === 'mock') return mockProspects;
   if (SOURCE === 'static') return exported?.prospects ?? [];
+  if (SOURCE === 'api') return api<Prospect[]>('/prospects');
   list ??= ia<Prospect[]>('/prospects').catch((e) => {
     list = undefined;
     throw e;
@@ -71,6 +84,12 @@ const pages = new Map<string, Promise<Prospect | undefined>>();
 export async function getProspect(id: string): Promise<Prospect | undefined> {
   if (SOURCE === 'mock') return mockProspects.find((p) => p.id === id);
   if (SOURCE === 'static') return exported?.prospects.find((p) => p.id === id);
+  if (SOURCE === 'api')
+    return api<Prospect>(`/prospects/${encodeURIComponent(id)}`).catch((e) => {
+      if (e instanceof Error && /introuvable/i.test(e.message))
+        return undefined;
+      throw e;
+    });
   let page = pages.get(id);
   if (!page) {
     page = ia<Prospect>(`/prospects/${encodeURIComponent(id)}`).catch((e) => {
@@ -82,6 +101,19 @@ export async function getProspect(id: string): Promise<Prospect | undefined> {
     pages.set(id, page);
   }
   return page;
+}
+
+export interface FicheResult {
+  status: 'regeneree' | 'repli'; // repli : l'IA a échoué, fiche en base inchangée
+  reason?: string;
+  prospect: Prospect;
+}
+
+// Mode « api » : fait réécrire la fiche par le LLM local, puis l'enregistre
+export async function regenerateFiche(id: string): Promise<FicheResult> {
+  return api<FicheResult>(`/prospects/${encodeURIComponent(id)}/fiche`, {
+    method: 'POST',
+  });
 }
 
 export async function getBriefing(): Promise<Briefing> {

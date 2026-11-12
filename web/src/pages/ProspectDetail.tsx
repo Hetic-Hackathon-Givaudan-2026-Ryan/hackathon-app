@@ -1,7 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router';
-import type { Contact, Question } from '../types';
-import { getProspect, getProspects, SOURCE } from '../data/api';
+import type { Contact, FicheInfo, Prospect, Question } from '../types';
+import {
+  getProspect,
+  getProspects,
+  regenerateFiche,
+  SOURCE,
+} from '../data/api';
 import { useData } from '../lib/useData';
 import ScorePopover from '../components/ScorePopover';
 import {
@@ -26,6 +31,19 @@ function Trend({ value }: { value: number }) {
       <small> · derniers échanges</small>
     </p>
   );
+}
+
+// Qui a rédigé la fiche : pré-rédigée en base, ou régénérée à la demande
+function ficheLabel(fiche: FicheInfo | undefined, sources: number) {
+  if (!fiche) return `Généré par l’IA · ${sources} sources · à vérifier`;
+  if (fiche.model.startsWith('maquette')) return 'Rédigé pour la maquette';
+  const when = new Date(fiche.createdAt).toLocaleString('fr-FR', {
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+  return `${fiche.origin === 'regeneration' ? 'Régénéré' : 'Pré-rédigé'} par l’IA (${fiche.model}) · ${when} · à vérifier`;
 }
 
 const linkLabel = (links: Question['links']) =>
@@ -86,10 +104,14 @@ function ContactMenu({ contact }: { contact: Contact }) {
 export default function ProspectDetail() {
   const { id = '' } = useParams();
   const {
-    data: p,
+    data: loaded,
     loading,
     error,
   } = useData(`prospect-${id}`, () => getProspect(id));
+  // Fiche régénérée pendant la visite : remplace celle du chargement
+  const [regenerated, setRegenerated] = useState<Prospect>();
+  const [writing, setWriting] = useState(false);
+  const p = regenerated?.id === id ? regenerated : loaded;
   const { data: all } = useData('prospects', getProspects);
   const notify = useToast();
   const [linked, setLinked] = useState<Question['links'] | null>(null);
@@ -145,6 +167,23 @@ export default function ProspectDetail() {
     el.focus({ preventScroll: true });
     setFlash(true);
     setTimeout(() => setFlash(false), 1200);
+  };
+
+  const regenerate = async () => {
+    setWriting(true);
+    try {
+      const res = await regenerateFiche(p.id);
+      setRegenerated(res.prospect);
+      notify(
+        res.status === 'regeneree'
+          ? 'Nouvelle fiche rédigée par l’IA locale'
+          : `L’IA n’a pas pu répondre (${res.reason}) : fiche précédente conservée`,
+      );
+    } catch (e) {
+      notify(e instanceof Error ? e.message : 'Régénération impossible');
+    } finally {
+      setWriting(false);
+    }
   };
 
   const isLinked = (n: number) => Array.isArray(linked) && linked.includes(n);
@@ -225,12 +264,25 @@ export default function ProspectDetail() {
             tabIndex={-1}
             className={`panel${flash ? ' is-flash' : ''}`}
             aria-labelledby="recap"
+            aria-busy={writing}
           >
             <div className="panel__head">
               <h2 id="recap">À retenir avant votre rendez-vous</h2>
               <span className="tag tag--accent">
-                Généré par l’IA · {p.score.sources} sources · à vérifier
+                {ficheLabel(p.fiche, p.score.sources)}
               </span>
+              {SOURCE === 'api' && (
+                <button
+                  type="button"
+                  className="link"
+                  disabled={writing}
+                  onClick={regenerate}
+                >
+                  {writing
+                    ? 'L’IA locale rédige… (jusqu’à 2 min)'
+                    : 'Régénérer avec l’IA'}
+                </button>
+              )}
             </div>
             {p.takeaways.length ? (
               <ol className="takeaways">

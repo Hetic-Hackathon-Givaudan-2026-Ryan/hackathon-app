@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:mock": "vite --mode mock",
     "dev:ia": "vite --mode ia",
     "build": "tsc && vite build",
     "build:static": "tsc && vite build --mode static --base ./"

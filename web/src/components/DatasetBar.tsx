@@ -3,7 +3,8 @@ import { getDataset, SOURCE, STATIC_INFO, uploadDataset } from '../data/api';
 import { useData } from '../lib/useData';
 import { useToast } from './ui';
 
-// Mode « ia » seulement : nom du jeu de données et import d'un autre fichier
+// Mode « ia » : nom du jeu de données et import d'un autre fichier.
+// Modes « api » et « static » : rappelle que les données sont fictives.
 export default function DatasetBar() {
   const { data: info } = useData('dataset', getDataset);
   const [busy, setBusy] = useState(false);
@@ -18,6 +19,16 @@ export default function DatasetBar() {
           {STATIC_INFO.dataset} · {STATIC_INFO.prospects.length} prospects ·
           fiches rédigées par l’IA ({STATIC_INFO.model}) le{' '}
           {new Date(STATIC_INFO.generatedAt).toLocaleDateString('fr-FR')}
+        </span>
+      </div>
+    );
+  if (SOURCE === 'api')
+    return (
+      <div className="dataset">
+        <span className="tag tag--soft">Démo</span>
+        <span className="muted">
+          Prospects fictifs en base PostgreSQL · fiches pré-rédigées par le LLM
+          local, régénérables à la demande
         </span>
       </div>
     );
