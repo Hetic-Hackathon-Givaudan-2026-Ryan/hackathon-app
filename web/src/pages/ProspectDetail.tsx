@@ -86,7 +86,7 @@ export default function ProspectDetail() {
       <main className="page">
         <Loading>
           {SOURCE === 'ia'
-            ? 'L’IA prépare la fiche… (jusqu’à 45 s la première fois)'
+            ? 'L’IA rédige la fiche… (environ 15 s)'
             : 'Chargement…'}
         </Loading>
       </main>

@@ -44,16 +44,25 @@ export async function getProspects(): Promise<Prospect[]> {
   return list;
 }
 
-// Avec l'IA, la fiche est rédigée à la demande : 15 à 45 s la première fois
+// Avec l'IA, la fiche est rédigée à la demande (environ 15 s), sauf les
+// premières, pré-rédigées par le service au chargement du jeu de données
+// Une seule requête par fiche : en mode dev, React lance chaque chargement
+// deux fois, ce qui faisait rédiger la fiche deux fois de suite
+const pages = new Map<string, Promise<Prospect | undefined>>();
+
 export async function getProspect(id: string): Promise<Prospect | undefined> {
   if (SOURCE === 'mock') return mockProspects.find((p) => p.id === id);
-  try {
-    return await ia<Prospect>(`/prospects/${encodeURIComponent(id)}`);
-  } catch (e) {
-    if (e instanceof Error && /introuvable|Aucun prospect/i.test(e.message))
-      return undefined;
-    throw e;
+  let page = pages.get(id);
+  if (!page) {
+    page = ia<Prospect>(`/prospects/${encodeURIComponent(id)}`).catch((e) => {
+      pages.delete(id);
+      if (e instanceof Error && /introuvable|Aucun prospect/i.test(e.message))
+        return undefined;
+      throw e;
+    });
+    pages.set(id, page);
   }
+  return page;
 }
 
 export async function getBriefing(): Promise<Briefing> {
@@ -82,6 +91,7 @@ export async function uploadDataset(file: File): Promise<DatasetInfo> {
     body: form,
   });
   list = undefined;
+  pages.clear();
   return info;
 }
 
