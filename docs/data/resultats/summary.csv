@@ -1,0 +1,2 @@
+﻿modele,date,prospects,fiches_ok_http200,echecs,rejets_filtre_dans_les_logs,temps_median_s,temps_moyen_s,temps_max_s,memoire_ollama
+qwen2.5:3b,2026-11-13 16:07,15,14,1,1,62.2,81.7,200.9,4.24GiB / 6.732GiB
