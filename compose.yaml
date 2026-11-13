@@ -54,26 +54,10 @@ services:
       start_period: 60s
       start_interval: 2s
 
-  # Une fois : télécharge le modèle s'il manque (environ 2 Go au premier
-  # lancement), le charge en mémoire, puis s'arrête. La démo marche pendant ce
-  # temps : les fiches pré-rédigées sont en base, seule la régénération attend.
-  ollama-pull:
-    image: ollama/ollama:0.40.16
-    entrypoint:
-      [
-        '/bin/sh',
-        '-c',
-        'ollama pull "$$MODEL" && ollama run "$$MODEL" "Réponds OK."',
-      ]
-    environment:
-      OLLAMA_HOST: ollama:11434
-      MODEL: ${OLLAMA_MODEL:-qwen2.5:3b}
-    depends_on:
-      ollama:
-        condition: service_healthy
-    restart: on-failure
-
-  # Service IA de l'équipe Data/IA (ia/main.py) : rédige les fiches prospect
+  # Service IA de l'équipe Data/IA (ia/main.py) : rédige les fiches prospect.
+  # Il télécharge lui-même le modèle s'il manque (environ 2 Go au premier
+  # lancement, avec reprise en cas d'erreur), puis le charge en mémoire.
+  # L'interface marche pendant ce temps et affiche la progression.
   ia:
     build: ia
     environment:
@@ -84,6 +68,7 @@ services:
     depends_on:
       ollama:
         condition: service_healthy
+    restart: unless-stopped
 
   api:
     build:

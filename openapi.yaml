@@ -17,6 +17,7 @@ servers:
 tags:
   - name: santé
   - name: prospects
+  - name: ia
   - name: questions
 paths:
   /api/health:
@@ -96,6 +97,23 @@ paths:
           $ref: '#/components/responses/ProspectIntrouvable'
         '500':
           $ref: '#/components/responses/ErreurServeur'
+  /api/ia:
+    get:
+      tags: [ia]
+      summary: Donne l'état du modèle d'IA local
+      description: >-
+        Relaie `GET /health` du service IA. Au premier lancement, le service IA
+        télécharge le modèle puis le charge en mémoire : le front s'en sert pour
+        afficher la progression au lieu d'une erreur. Répond toujours 200, avec
+        `state: injoignable` si le service IA ne répond pas.
+      operationId: getIaStatus
+      responses:
+        '200':
+          description: État du modèle.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IaStatus'
   /api/questions:
     get:
       tags: [questions]
@@ -363,6 +381,27 @@ components:
         createdAt:
           type: string
           format: date-time
+    IaStatus:
+      type: object
+      required: [ready, state, detail]
+      properties:
+        model:
+          type: string
+          example: qwen2.5:3b
+        ready:
+          type: boolean
+          description: Le modèle est téléchargé et chargé ; la régénération peut marcher.
+        state:
+          type: string
+          enum: [attente, telechargement, chargement, pret, injoignable]
+        progress:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Pourcentage du téléchargement, pendant `telechargement`.
+        detail:
+          type: string
+          example: Téléchargement du modèle qwen2.5:3b…
     FicheResult:
       type: object
       required: [status, prospect]
@@ -375,8 +414,8 @@ components:
             échoué, la fiche existante est renvoyée.
         reason:
           type: string
-          description: Cause du repli.
-          example: délai de 110 s dépassé
+          description: Cause du repli, lisible par l'utilisateur.
+          example: Téléchargement du modèle qwen2.5:3b… (45 %)
         prospect:
           $ref: '#/components/schemas/Prospect'
     Health:

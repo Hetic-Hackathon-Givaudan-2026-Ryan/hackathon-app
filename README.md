@@ -16,11 +16,12 @@ Puis ouvrir <http://localhost:8080> : accueil, liste des prospects, fiche d’un
 prospect. Sur une fiche, **Régénérer avec l’IA** fait réécrire « À retenir » et
 « Questions à poser » par le LLM local (20 à 50 s), puis l’enregistre en base.
 
-- **Premier lancement** : Docker construit les images (api, web, ia) et le
-  service `ollama-pull` télécharge le modèle `qwen2.5:3b` (environ 2 Go), puis
-  le charge en mémoire. L’interface est utilisable avant la fin du
-  téléchargement : les fiches pré-rédigées sont déjà en base, seule la
-  régénération attend le modèle (elle renvoie la fiche existante en attendant).
+- **Premier lancement** : Docker construit les images (api, web, ia), puis le
+  service `ia` télécharge lui-même le modèle `qwen2.5:3b` (environ 2 Go) et le
+  charge en mémoire, en réessayant tant qu’il le faut. Aucune commande à lancer.
+  L’interface est utilisable tout de suite : les fiches pré-rédigées sont en
+  base, et le bouton de régénération affiche « Modèle IA en téléchargement…
+  45 % » jusqu’à ce que le modèle soit prêt.
 - **Lancements suivants** : images et modèle sont réutilisés ; l’interface
   répond en une quinzaine de secondes.
 - **Repartir de zéro** : `docker compose down -v` efface la base et le modèle
@@ -29,15 +30,14 @@ prospect. Sur une fiche, **Régénérer avec l’IA** fait réécrire « À rete
   `OLLAMA_MODEL=qwen2.5:1.5b docker compose up`. Aucune autre variable n’est
   nécessaire : `compose.yaml` contient des valeurs de démo, pas de secret.
 
-| Service       | Rôle                                                        |
-| ------------- | ----------------------------------------------------------- |
-| `web`         | Front React buildé, servi par nginx, `/api` vers l’API      |
-| `api`         | API Express : prospects, régénération des fiches (`/api`)   |
-| `db`          | PostgreSQL 17, schéma et données de démo de `db/init/`      |
-| `ia`          | Service FastAPI qui rédige les fiches avec le LLM           |
-| `ollama`      | LLM local (modèles dans le volume `ollama-models`)          |
-| `ollama-pull` | Télécharge le modèle au premier lancement, puis s’arrête    |
-| `dev`         | Poste de travail du Dev Container (profil `dev`, hors démo) |
+| Service  | Rôle                                                        |
+| -------- | ----------------------------------------------------------- |
+| `web`    | Front React buildé, servi par nginx, `/api` vers l’API      |
+| `api`    | API Express : prospects, régénération des fiches (`/api`)   |
+| `db`     | PostgreSQL 17, schéma et données de démo de `db/init/`      |
+| `ia`     | Service FastAPI : télécharge le modèle, rédige les fiches   |
+| `ollama` | LLM local (modèles dans le volume `ollama-models`)          |
+| `dev`    | Poste de travail du Dev Container (profil `dev`, hors démo) |
 
 Choix et limites : [ADR 0006](docs/adr/0006-compose-demo.md).
 

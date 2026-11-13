@@ -2,10 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router';
 import type { Contact, FicheInfo, Prospect, Question } from '../types';
 import {
+  getIaStatus,
   getProspect,
   getProspects,
   regenerateFiche,
   SOURCE,
+  type IaStatus,
 } from '../data/api';
 import { useData } from '../lib/useData';
 import ScorePopover from '../components/ScorePopover';
@@ -45,6 +47,42 @@ function ficheLabel(fiche: FicheInfo | undefined, sources: number) {
   });
   return `${fiche.origin === 'regeneration' ? 'Régénéré' : 'Pré-rédigé'} par l’IA (${fiche.model}) · ${when} · à vérifier`;
 }
+
+// Mode « api » : état du modèle d'IA, relu toutes les 3 s tant qu'il n'est
+// pas prêt (au premier lancement, il se télécharge pendant quelques minutes)
+function useIaStatus(enabled: boolean) {
+  const [status, setStatus] = useState<IaStatus>();
+  useEffect(() => {
+    if (!enabled) return;
+    let active = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const poll = () =>
+      getIaStatus()
+        .catch((): IaStatus => ({
+          ready: false,
+          state: 'injoignable',
+          detail: 'Service IA injoignable',
+        }))
+        .then((s) => {
+          if (!active) return;
+          setStatus(s);
+          if (!s.ready) timer = setTimeout(poll, 3000);
+        });
+    poll();
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [enabled]);
+  return status;
+}
+
+const waitLabel = (ia: IaStatus) =>
+  ia.state === 'telechargement'
+    ? `Modèle IA en téléchargement… ${ia.progress ?? 0} %`
+    : ia.state === 'chargement'
+      ? 'Modèle IA en cours de chargement…'
+      : 'IA en cours de démarrage…';
 
 const linkLabel = (links: Question['links']) =>
   links === 'contacts'
@@ -111,6 +149,8 @@ export default function ProspectDetail() {
   // Fiche régénérée pendant la visite : remplace celle du chargement
   const [regenerated, setRegenerated] = useState<Prospect>();
   const [writing, setWriting] = useState(false);
+  const ia = useIaStatus(SOURCE === 'api');
+  const iaWaiting = !!ia && !ia.ready;
   const p = regenerated?.id === id ? regenerated : loaded;
   const { data: all } = useData('prospects', getProspects);
   const notify = useToast();
@@ -177,7 +217,7 @@ export default function ProspectDetail() {
       notify(
         res.status === 'regeneree'
           ? 'Nouvelle fiche rédigée par l’IA locale'
-          : `L’IA n’a pas pu répondre (${res.reason}) : fiche précédente conservée`,
+          : `L’IA n’a pas pu rédiger la fiche (${res.reason}) : fiche actuelle conservée`,
       );
     } catch (e) {
       notify(e instanceof Error ? e.message : 'Régénération impossible');
@@ -275,12 +315,15 @@ export default function ProspectDetail() {
                 <button
                   type="button"
                   className="link"
-                  disabled={writing}
+                  disabled={writing || iaWaiting}
+                  title={ia && !ia.ready ? ia.detail : undefined}
                   onClick={regenerate}
                 >
                   {writing
                     ? 'L’IA locale rédige… (jusqu’à 2 min)'
-                    : 'Régénérer avec l’IA'}
+                    : ia && !ia.ready
+                      ? waitLabel(ia)
+                      : 'Régénérer avec l’IA'}
                 </button>
               )}
             </div>

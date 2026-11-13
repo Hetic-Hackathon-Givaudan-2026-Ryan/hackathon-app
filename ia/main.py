@@ -4,6 +4,9 @@ import html
 import json
 import os
 import re
+import threading
+import time
+from contextlib import asynccontextmanager
 from typing import Annotated, Literal
 
 import httpx
@@ -18,7 +21,79 @@ MODEL = os.environ.get("MODEL", "llama3.2:1b")
 # Délai maximal d'une rédaction de fiche, en secondes
 TIMEOUT = float(os.environ.get("FICHE_TIMEOUT", "100"))
 
-app = FastAPI(title="IA de l'équipe Data/IA", version="1.1.0")
+
+# --- Le modèle : téléchargé et chargé par ce service, sans commande manuelle ----
+# Un fil de fond attend Ollama, télécharge le modèle s'il manque (avec reprise
+# en cas d'erreur), le charge en mémoire, puis vérifie qu'il reste présent.
+# Pendant ce temps, /fiche répond 503 avec un message lisible.
+
+ModelState = Literal["attente", "telechargement", "chargement", "pret"]
+model_status: dict = {"state": "attente", "progress": None, "detail": "Connexion à Ollama…"}
+
+
+def set_status(state: ModelState, detail: str, progress: int | None = None) -> None:
+    model_status.update(state=state, detail=detail, progress=progress)
+
+
+def model_present() -> bool:
+    tags = httpx.get(f"{OLLAMA_URL}/api/tags", timeout=5).json()
+    names = [m["name"] for m in tags.get("models", [])]
+    return any(n == MODEL or n == f"{MODEL}:latest" for n in names)
+
+
+def pull_model() -> None:
+    """Télécharge le modèle en suivant la progression ; lève une erreur si le pull échoue."""
+    set_status("telechargement", f"Téléchargement du modèle {MODEL}…", 0)
+    timeout = httpx.Timeout(30, read=300)
+    with httpx.stream("POST", f"{OLLAMA_URL}/api/pull", json={"model": MODEL}, timeout=timeout) as r:
+        r.raise_for_status()
+        for line in r.iter_lines():
+            if not line:
+                continue
+            event = json.loads(line)
+            if "error" in event:
+                raise RuntimeError(event["error"])
+            total, done = event.get("total"), event.get("completed")
+            if total and done is not None and total > 10_000_000:  # la couche des poids
+                set_status("telechargement", f"Téléchargement du modèle {MODEL}…", int(100 * done / total))
+
+
+def load_model() -> None:
+    """Charge le modèle en mémoire (requête sans prompt), pour une première fiche rapide."""
+    set_status("chargement", f"Chargement du modèle {MODEL} en mémoire…")
+    response = httpx.post(
+        f"{OLLAMA_URL}/api/generate", json={"model": MODEL, "keep_alive": -1}, timeout=300
+    )
+    response.raise_for_status()
+
+
+def keep_model_ready() -> None:
+    delay = 2
+    while True:
+        try:
+            if not model_present():
+                pull_model()
+                continue  # vérifie que le modèle est bien là
+            if model_status["state"] != "pret":
+                load_model()
+                set_status("pret", f"Modèle {MODEL} prêt")
+            delay = 2
+            time.sleep(30)  # le volume a pu être vidé : on revérifie de temps en temps
+        except (httpx.HTTPError, RuntimeError, ValueError) as e:
+            if model_status["state"] != "telechargement":
+                set_status("attente", "Ollama démarre, nouvel essai dans quelques secondes…")
+            print(f"Modèle {MODEL} pas encore prêt ({type(e).__name__}: {e}), nouvel essai dans {delay} s", flush=True)
+            time.sleep(delay)
+            delay = min(delay * 2, 30)
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    threading.Thread(target=keep_model_ready, daemon=True).start()
+    yield
+
+
+app = FastAPI(title="IA de l'équipe Data/IA", version="1.2.0", lifespan=lifespan)
 
 
 def check_key(x_api_key: str) -> None:
@@ -56,20 +131,23 @@ def answer(body: Question, x_api_key: Annotated[str, Header()] = "") -> Answer:
 class Health(BaseModel):
     status: Literal["ok"]
     model: str
-    ollama: Literal["ok", "injoignable"]
     model_ready: bool
+    model_state: ModelState
+    progress: int | None = None  # pourcentage du téléchargement
+    detail: str
 
 
 @app.get("/health")
 def health() -> Health:
-    """Le service répond ; dit aussi si Ollama et le modèle sont prêts. Sans clé."""
-    try:
-        tags = httpx.get(f"{OLLAMA_URL}/api/tags", timeout=3).json()
-        names = [m["name"] for m in tags.get("models", [])]
-        ready = any(n == MODEL or n.startswith(MODEL + ":") for n in names)
-        return Health(status="ok", model=MODEL, ollama="ok", model_ready=ready)
-    except (httpx.HTTPError, ValueError):
-        return Health(status="ok", model=MODEL, ollama="injoignable", model_ready=False)
+    """Le service répond ; dit aussi où en est le modèle (téléchargement, chargement, prêt). Sans clé."""
+    return Health(
+        status="ok",
+        model=MODEL,
+        model_ready=model_status["state"] == "pret",
+        model_state=model_status["state"],
+        progress=model_status["progress"],
+        detail=model_status["detail"],
+    )
 
 
 # --- Rédaction de la fiche « À retenir » et « Questions à poser » ---------------
@@ -252,12 +330,19 @@ def clean(facts: list[dict], out: dict) -> tuple[list[Takeaway], list[FicheQuest
     "/fiche",
     responses={
         502: {"description": "Réponse du LLM inutilisable"},
-        504: {"description": "Ollama injoignable, modèle absent ou trop lent"},
+        503: {"description": "Modèle pas encore prêt (téléchargement ou chargement en cours)"},
+        504: {"description": "Ollama injoignable ou trop lent"},
     },
 )
 def fiche(body: ProspectFacts, x_api_key: Annotated[str, Header()] = "") -> Fiche:
     """Rédige « À retenir » et « Questions à poser » à partir des faits du prospect. Exige X-API-Key."""
     check_key(x_api_key)
+    if model_status["state"] != "pret":
+        progress = model_status["progress"]
+        raise HTTPException(
+            status_code=503,
+            detail=model_status["detail"] + (f" ({progress} %)" if progress is not None else ""),
+        )
     facts = facts_of(body)
     prompt = f"Prospect : {body.name} · {body.segment} · {body.activity}\nFAITS :\n" + "\n".join(
         f"{i}. {f['text']}" for i, f in enumerate(facts, 1)
@@ -281,7 +366,9 @@ def fiche(body: ProspectFacts, x_api_key: Annotated[str, Header()] = "") -> Fich
         response.raise_for_status()
         out = json.loads(response.json()["message"]["content"])
     except httpx.HTTPStatusError as e:
-        # 404 : le modèle n'est pas (encore) téléchargé
+        if e.response.status_code == 404:  # modèle supprimé entre-temps : le fil de fond le retélécharge
+            set_status("attente", f"Modèle {MODEL} introuvable, nouveau téléchargement…")
+            raise HTTPException(status_code=503, detail=model_status["detail"])
         raise HTTPException(status_code=504, detail=f"Ollama : {e.response.status_code} {e.response.text[:200]}")
     except httpx.HTTPError as e:
         raise HTTPException(status_code=504, detail=f"Ollama injoignable ou trop lent : {type(e).__name__}")

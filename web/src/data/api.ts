@@ -116,6 +116,19 @@ export async function regenerateFiche(id: string): Promise<FicheResult> {
   });
 }
 
+// État du modèle d'IA local (GET /api/ia) : prêt, ou téléchargement en cours
+export interface IaStatus {
+  model?: string;
+  ready: boolean;
+  state: 'attente' | 'telechargement' | 'chargement' | 'pret' | 'injoignable';
+  progress?: number; // pourcentage du téléchargement
+  detail: string;
+}
+
+export async function getIaStatus(): Promise<IaStatus> {
+  return api<IaStatus>('/ia');
+}
+
 export async function getBriefing(): Promise<Briefing> {
   const prospects = await getProspects();
   const priorities = prospects.slice(0, 5);

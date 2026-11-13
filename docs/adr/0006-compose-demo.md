@@ -24,7 +24,7 @@ Nous choisissons l'option 3, parce que c'est la seule où `docker compose up` se
 
 Concrètement :
 
-- Services : `db` (PostgreSQL 17, ADR 0002), `ollama` (image `ollama/ollama`, modèles dans le volume `ollama-models`), `ollama-pull` (télécharge le modèle s'il manque, le charge en mémoire, puis s'arrête), `ia` (`ia/Dockerfile`, FastAPI), `api` (`api/Dockerfile`, multi-étapes : build TypeScript puis `node dist`), `web` (`web/Dockerfile` : build Vite puis nginx, qui transmet `/api` à l'API). Seul `web` publie un port : <http://localhost:8080>.
+- Services : `db` (PostgreSQL 17, ADR 0002), `ollama` (image `ollama/ollama`, modèles dans le volume `ollama-models`), `ia` (`ia/Dockerfile`, FastAPI : télécharge le modèle s'il manque, avec reprise en cas d'erreur, le charge en mémoire et vérifie qu'il reste présent), `api` (`api/Dockerfile`, multi-étapes : build TypeScript puis `node dist`), `web` (`web/Dockerfile` : build Vite puis nginx, qui transmet `/api` à l'API). Seul `web` publie un port : <http://localhost:8080>.
 - Le service `dev` passe dans `profiles: [dev]`. `.devcontainer/devcontainer.json` le démarre avec `runServices: ["dev"]` (et `db`, par `depends_on`).
 - Les données PostgreSQL passent de `db/data/` à un volume Docker, `db-data`. C'est un changement par rapport à l'ADR 0002, qui reste acceptée pour le reste : `docker compose down -v` remet la démo à zéro, et une base créée avant le schéma des prospects n'empêche pas la démo de démarrer.
 - Les prospects, signaux, interlocuteurs et scores sont en base (`db/init/003-prospects.sql`, `004-prospects-seed.sql`), avec une fiche pré-rédigée par prospect. `POST /api/prospects/{id}/fiche` fait rédiger une nouvelle fiche par le LLM local et l'enregistre ; si l'IA échoue ou dépasse 110 s, la fiche en base est renvoyée (`openapi.yaml`).
@@ -34,6 +34,6 @@ Concrètement :
 
 ## Conséquences
 
-- Positives : une commande pour la démo, sur n'importe quel poste avec Docker. Les données passent vraiment par PostgreSQL et l'API, et la régénération montre le LLM local. La démo reste utilisable pendant le téléchargement du modèle et si l'IA tombe.
+- Positives : une commande pour la démo, sur n'importe quel poste avec Docker. Les données passent vraiment par PostgreSQL et l'API, et la régénération montre le LLM local. La démo reste utilisable pendant le téléchargement du modèle, dont l'interface affiche la progression (`GET /api/ia`), et si l'IA tombe.
 - Négatives, à accepter : premier lancement long (images à construire et environ 2 Go de modèle). Le LLM garde environ 3 Go de mémoire tant que la démo tourne. Les données de `db/data/` d'un Dev Container existant ne sont plus utilisées : la base repart du seed. Le Dev Container et la démo partagent le nom de projet `hackathon` : les lancer en même temps démarre une seule base, ce qui est voulu.
 - À revoir si : la démo doit tourner sur une machine sans Docker, ou avec un fournisseur d'IA hébergé (il suffit alors de changer `OLLAMA_URL` / `MODEL` du service `ia`), ou si le premier lancement doit être plus court (modèle plus petit, images publiées sur un registre).

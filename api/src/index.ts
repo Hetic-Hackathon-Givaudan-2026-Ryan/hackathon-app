@@ -187,12 +187,41 @@ async function writeFiche(prospect: object): Promise<Fiche> {
   }
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
+    console.warn(`Service IA : ${response.status} ${body.detail ?? ''}`);
+    // 503 : modèle en cours de téléchargement, le message est déjà lisible
+    if (response.status === 503 && body.detail) throw new Error(body.detail);
     throw new Error(
-      `service IA : ${response.status} ${body.detail ?? ''}`.trim(),
+      response.status === 502
+        ? 'la réponse de l’IA était inutilisable'
+        : 'l’IA n’a pas répondu à temps',
     );
   }
   return response.json();
 }
+
+// État du modèle d'IA, pour que le front annonce un téléchargement en cours
+app.get('/api/ia', async (_req, res) => {
+  try {
+    if (!IA_URL) throw new Error('IA_URL non configurée');
+    const response = await fetch(`${IA_URL}/health`, {
+      signal: AbortSignal.timeout(3000),
+    });
+    const h = await response.json();
+    res.json({
+      model: h.model,
+      ready: h.model_ready,
+      state: h.model_state,
+      progress: h.progress ?? undefined,
+      detail: h.detail,
+    });
+  } catch {
+    res.json({
+      ready: false,
+      state: 'injoignable',
+      detail: 'Service IA injoignable',
+    });
+  }
+});
 
 // Même appel pour Ollama, Mistral, OpenAI… : seule la configuration change
 async function ask(question: string): Promise<string> {
