@@ -10,22 +10,22 @@ Service FastAPI de l'équipe Data/IA. Il rédige, avec un LLM local servi par Ol
 
 ## Routes
 
-| Route         | Rôle                                                                                                        | Clé `X-API-Key` |
-| ------------- | ----------------------------------------------------------------------------------------------------------- | --------------- |
-| `GET /health` | Le service répond ; indique l'état du modèle : `attente`, `telechargement`, `chargement`, `pret`.           | non             |
-| `POST /fiche` | Rédige « À retenir » et « Questions à poser » à partir d'un `ProspectFacts`.                                | oui             |
-| `POST /answer` | Réponse libre à une question, appel direct au LLM, sans les garde-fous de `/fiche`.                         | oui             |
+| Route          | Rôle                                                                                              | Clé `X-API-Key` |
+| -------------- | ------------------------------------------------------------------------------------------------- | --------------- |
+| `GET /health`  | Le service répond ; indique l'état du modèle : `attente`, `telechargement`, `chargement`, `pret`. | non             |
+| `POST /fiche`  | Rédige « À retenir » et « Questions à poser » à partir d'un `ProspectFacts`.                      | oui             |
+| `POST /answer` | Réponse libre à une question, appel direct au LLM, sans les garde-fous de `/fiche`.               | oui             |
 
 Codes d'erreur de `/fiche` : `401` clé invalide, `502` réponse du LLM non conforme après les essais, `503` modèle pas encore prêt (téléchargement ou chargement en cours), `504` Ollama injoignable ou trop lent.
 
 ## Configuration
 
-| Variable          | Rôle                                                              | Valeur                                                          |
-| ----------------- | ----------------------------------------------------------------- | --------------------------------------------------------------- |
-| `API_KEY`         | Clé exigée dans `X-API-Key`. Sans clé, le service refuse de démarrer. | `demo-cle-locale` dans `compose.yaml` (valeur de démo, pas un secret) |
-| `OLLAMA_URL`      | Adresse d'Ollama                                                  | `http://localhost:11434` par défaut ; `http://ollama:11434` en compose |
-| `MODEL`           | Modèle utilisé                                                    | `llama3.2:1b` par défaut dans le code ; `qwen2.5:3b` en compose |
-| `FICHE_TIMEOUT`   | Durée maximale d'une rédaction de fiche, en secondes              | `100`                                                           |
+| Variable        | Rôle                                                                  | Valeur                                                                 |
+| --------------- | --------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `API_KEY`       | Clé exigée dans `X-API-Key`. Sans clé, le service refuse de démarrer. | `demo-cle-locale` dans `compose.yaml` (valeur de démo, pas un secret)  |
+| `OLLAMA_URL`    | Adresse d'Ollama                                                      | `http://localhost:11434` par défaut ; `http://ollama:11434` en compose |
+| `MODEL`         | Modèle utilisé                                                        | `llama3.2:1b` par défaut dans le code ; `qwen2.5:3b` en compose        |
+| `FICHE_TIMEOUT` | Durée maximale d'une rédaction de fiche, en secondes                  | `100`                                                                  |
 
 En compose, le modèle se change avec la variable `OLLAMA_MODEL` (voir `docs/data/REPRODUCTION.md`).
 

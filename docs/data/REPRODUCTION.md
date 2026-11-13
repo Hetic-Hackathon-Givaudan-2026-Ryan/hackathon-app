@@ -7,14 +7,14 @@ Ce document permet à une personne extérieure de relancer la démo et la mesure
 
 ## Prérequis
 
-| Élément | Valeur |
-| --- | --- |
-| Docker Desktop (Compose v2) | testé avec Docker Desktop 4.99.0, sous Windows |
-| Mémoire allouée à Docker | au moins 6 Gio (mesure : 6,73 Gio disponibles, 4,24 Gio utilisés par Ollama avec `qwen2.5:3b`) |
-| Disque | environ 2 Go pour le modèle, plus les images Docker |
-| Python 3 sur l'hôte | uniquement pour `bench_fiches.py` (bibliothèque standard, rien à installer) |
-| Réseau | nécessaire au premier lancement (images et modèle) ; la démo tourne ensuite hors ligne |
-| GPU | aucun : le modèle tourne sur CPU |
+| Élément                     | Valeur                                                                                         |
+| --------------------------- | ---------------------------------------------------------------------------------------------- |
+| Docker Desktop (Compose v2) | testé avec Docker Desktop 4.99.0, sous Windows                                                 |
+| Mémoire allouée à Docker    | au moins 6 Gio (mesure : 6,73 Gio disponibles, 4,24 Gio utilisés par Ollama avec `qwen2.5:3b`) |
+| Disque                      | environ 2 Go pour le modèle, plus les images Docker                                            |
+| Python 3 sur l'hôte         | uniquement pour `bench_fiches.py` (bibliothèque standard, rien à installer)                    |
+| Réseau                      | nécessaire au premier lancement (images et modèle) ; la démo tourne ensuite hors ligne         |
+| GPU                         | aucun : le modèle tourne sur CPU                                                               |
 
 ## Étapes
 
@@ -93,12 +93,12 @@ Mesure du 13 novembre 2026, `qwen2.5:3b`, une seule exécution (détail dans `CO
 
 ## Dépannage
 
-| Symptôme | Cause probable | Action |
-| --- | --- | --- |
-| `503` sur `/fiche` | modèle pas encore prêt | attendre `model_ready: True` (étape 3) |
-| `504` sur `/fiche` | délai `FICHE_TIMEOUT` (100 s) dépassé | relancer ; fermer les applications gourmandes |
-| Le script s'arrête sur « ERREUR » | stack arrêtée | `docker compose ps`, puis `docker compose up -d` |
-| Messages d'`ia` | | `docker compose logs ia --tail 20` |
+| Symptôme                          | Cause probable                        | Action                                           |
+| --------------------------------- | ------------------------------------- | ------------------------------------------------ |
+| `503` sur `/fiche`                | modèle pas encore prêt                | attendre `model_ready: True` (étape 3)           |
+| `504` sur `/fiche`                | délai `FICHE_TIMEOUT` (100 s) dépassé | relancer ; fermer les applications gourmandes    |
+| Le script s'arrête sur « ERREUR » | stack arrêtée                         | `docker compose ps`, puis `docker compose up -d` |
+| Messages d'`ia`                   |                                       | `docker compose logs ia --tail 20`               |
 
 ## Journal de validation
 

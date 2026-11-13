@@ -19,28 +19,19 @@
       "questions": [
         {
           "text": "Quels sont les produits spécifiques que vous cherchez à développer avec ces nouveaux fonds ?",
-          "links": [
-            1,
-            2
-          ]
+          "links": [1, 2]
         },
         {
           "text": "Comment Atelier Sève gère-t-il la réglementation en matière de cosmétique naturelle ?",
-          "links": [
-            1
-          ]
+          "links": [1]
         },
         {
           "text": "Quel est votre calendrier pour lancer ces nouveaux produits après cette levée de fonds ?",
-          "links": [
-            1
-          ]
+          "links": [1]
         },
         {
           "text": "Avez-vous déjà envisagé d'engager Givaudan dans vos projets ?",
-          "links": [
-            1
-          ]
+          "links": [1]
         }
       ],
       "model": "qwen2.5:3b"
@@ -69,32 +60,19 @@
       "questions": [
         {
           "text": "Quels sont vos principaux produits et marques ?",
-          "links": [
-            1,
-            2
-          ]
+          "links": [1, 2]
         },
         {
           "text": "Comment envisagez-vous la croissance de votre entreprise en termes de nouveaux parfums ou gammes ?",
-          "links": [
-            1,
-            3
-          ]
+          "links": [1, 3]
         },
         {
           "text": "Quels sont vos principaux débouchés et marchés cibles pour les produits Givaudan ?",
-          "links": [
-            2,
-            3
-          ]
+          "links": [2, 3]
         },
         {
           "text": "Comment envisagez-vous la réglementation en cours sur votre secteur d'activité ?",
-          "links": [
-            1,
-            2,
-            3
-          ]
+          "links": [1, 2, 3]
         }
       ],
       "model": "qwen2.5:3b"
@@ -123,29 +101,19 @@
       "questions": [
         {
           "text": "Quels sont les principaux goûts que vous cherchez à apporter dans vos chips ?",
-          "links": [
-            1
-          ]
+          "links": [1]
         },
         {
           "text": "Comment envisagez-vous de formuler vos nouvelles préparations pour respecter la réglementation?",
-          "links": [
-            2,
-            3
-          ]
+          "links": [2, 3]
         },
         {
           "text": "Quel calendrier souhaiteriez-vous adopter pour mettre en place ces changements ?",
-          "links": [
-            2
-          ]
+          "links": [2]
         },
         {
           "text": "Avez-vous déjà envisagé de travailler avec un fournisseur externe pour cette réduction du sel?",
-          "links": [
-            1,
-            3
-          ]
+          "links": [1, 3]
         }
       ],
       "model": "qwen2.5:3b"
@@ -174,32 +142,19 @@
       "questions": [
         {
           "text": "Quels sont vos principaux produits et services ?",
-          "links": [
-            1,
-            2
-          ]
+          "links": [1, 2]
         },
         {
           "text": "Comment envisagez-vous l'avenir de votre entreprise ?",
-          "links": [
-            1,
-            3
-          ]
+          "links": [1, 3]
         },
         {
           "text": "Avez-vous des projets spécifiques en cours ou à venir concernant vos produits et services ?",
-          "links": [
-            2,
-            3
-          ]
+          "links": [2, 3]
         },
         {
           "text": "Quels sont les principaux défis que vous rencontrez dans votre activité actuelle?",
-          "links": [
-            1,
-            2,
-            3
-          ]
+          "links": [1, 2, 3]
         }
       ],
       "model": "qwen2.5:3b"
@@ -228,29 +183,19 @@
       "questions": [
         {
           "text": "Quels sont vos plans pour développer votre gamme d'arômes ?",
-          "links": [
-            1
-          ]
+          "links": [1]
         },
         {
           "text": "Comment envisagez-vous de répondre aux réglementations locales en Suède ?",
-          "links": [
-            2,
-            3
-          ]
+          "links": [2, 3]
         },
         {
           "text": "Quels sont vos besoins spécifiques pour votre gamme d'arômes actuelle ?",
-          "links": [
-            1,
-            2
-          ]
+          "links": [1, 2]
         },
         {
           "text": "Avez-vous des préoccupations particulières concernant la formulation de certains arômes ?",
-          "links": [
-            3
-          ]
+          "links": [3]
         }
       ],
       "model": "qwen2.5:3b"
@@ -288,33 +233,19 @@
       "questions": [
         {
           "text": "Quels produits laitiers souhaitent-vous proposer ?",
-          "links": [
-            1,
-            2
-          ]
+          "links": [1, 2]
         },
         {
           "text": "Pourquoi maintenant est-il important de travailler avec Givaudan ?",
-          "links": [
-            2,
-            3
-          ]
+          "links": [2, 3]
         },
         {
           "text": "Quels sont vos besoins en termes de goûts et formulations pour ces produits laitiers ?",
-          "links": [
-            1,
-            2,
-            3
-          ]
+          "links": [1, 2, 3]
         },
         {
           "text": "Avez-vous des préoccupations spécifiques concernant les réglementations applicables aux produits laitiers ?",
-          "links": [
-            1,
-            2,
-            3
-          ]
+          "links": [1, 2, 3]
         }
       ],
       "model": "qwen2.5:3b"
@@ -343,28 +274,19 @@
       "questions": [
         {
           "text": "Quelles innovations souhaitez-vous apporter à votre gamme de parfums ?",
-          "links": [
-            1,
-            2
-          ]
+          "links": [1, 2]
         },
         {
           "text": "Comment envisagez-vous d'intégrer les nouvelles tendances du marché dans vos produits ?",
-          "links": [
-            3
-          ]
+          "links": [3]
         },
         {
           "text": "Quels sont vos besoins en termes de réglementation pour votre gamme actuelle et future?",
-          "links": [
-            1
-          ]
+          "links": [1]
         },
         {
           "text": "Quel est le calendrier prévisionnel pour l'intégration d'un nouveau fournisseur ?",
-          "links": [
-            3
-          ]
+          "links": [3]
         }
       ],
       "model": "qwen2.5:3b"
@@ -393,22 +315,15 @@
       "questions": [
         {
           "text": "Quels sont les principaux critères que vous recherchez dans votre nouveau Fragrance Development Manager ?",
-          "links": [
-            1
-          ]
+          "links": [1]
         },
         {
           "text": "Comment envisagez-vous de formuler et de tester vos nouveaux parfums pour cette nouvelle ligne soin corps ?",
-          "links": [
-            2
-          ]
+          "links": [2]
         },
         {
           "text": "Quelles sont les réglementations spécifiques que vous devez prendre en compte dans la formulation de ces nouveaux produits ?",
-          "links": [
-            1,
-            2
-          ]
+          "links": [1, 2]
         },
         {
           "text": "Avez-vous un calendrier précis pour l'implémentation de cette nouvelle ligne soin corps ?",
@@ -441,29 +356,19 @@
       "questions": [
         {
           "text": "Quels sont vos principaux goûts pour les sodas artisanaux ?",
-          "links": [
-            1,
-            2
-          ]
+          "links": [1, 2]
         },
         {
           "text": "Avez-vous des préoccupations en matière de réglementation concernant votre gamme de produits ?",
-          "links": [
-            3
-          ]
+          "links": [3]
         },
         {
           "text": "Quel est le calendrier pour introduire un nouveau produit dans vos stocks ?",
-          "links": [
-            1,
-            2
-          ]
+          "links": [1, 2]
         },
         {
           "text": "Avez-vous déjà envisagé d'élargir votre gamme de produits en ajoutant des parfums innovants ?",
-          "links": [
-            3
-          ]
+          "links": [3]
         }
       ],
       "model": "qwen2.5:3b"
@@ -492,15 +397,11 @@
       "questions": [
         {
           "text": "Quels sont les principaux ingrédients que vous envisagez pour cette gamme de yaourts végétaux ?",
-          "links": [
-            1
-          ]
+          "links": [1]
         },
         {
           "text": "Comment allez-vous répondre aux attentes en termes de goûts et de texture des consommateurs ?",
-          "links": [
-            1
-          ]
+          "links": [1]
         },
         {
           "text": "Quelles sont vos préoccupations concernant la réglementation européenne pour cette gamme sans sucres ajoutés ?",
@@ -508,9 +409,7 @@
         },
         {
           "text": "Pourquoi est-ce maintenant que vous lancez une gamme de yaourts végétaux sans sucres ajoutés ?",
-          "links": [
-            1
-          ]
+          "links": [1]
         }
       ],
       "model": "qwen2.5:3b"
@@ -539,28 +438,19 @@
       "questions": [
         {
           "text": "Quelles sont vos priorités en matière de goûts pour la gamme protéinée ?",
-          "links": [
-            1
-          ]
+          "links": [1]
         },
         {
           "text": "Avez-vous des besoins spécifiques concernant les formulations ?",
-          "links": [
-            1,
-            2
-          ]
+          "links": [1, 2]
         },
         {
           "text": "Quelles sont vos préoccupations en termes de réglementation pour la gamme protéinée ?",
-          "links": [
-            2
-          ]
+          "links": [2]
         },
         {
           "text": "Avez-vous un calendrier précis pour ce poste de chef de produit arômes ?",
-          "links": [
-            1
-          ]
+          "links": [1]
         }
       ],
       "model": "qwen2.5:3b"
@@ -589,29 +479,19 @@
       "questions": [
         {
           "text": "Quels parfums souhaitez-vous proposer pour votre gamme de baumes à lèvres ?",
-          "links": [
-            1
-          ]
+          "links": [1]
         },
         {
           "text": "Comment envisagez-vous la formulation de ces baumes à lèvres ?",
-          "links": [
-            1,
-            2
-          ]
+          "links": [1, 2]
         },
         {
           "text": "Quelles sont les réglementations spécifiques que vous devrez prendre en compte pour cette gamme ?",
-          "links": [
-            1
-          ]
+          "links": [1]
         },
         {
           "text": "Pouvez-vous préciser le calendrier de lancement de votre gamme parfumée ?",
-          "links": [
-            1,
-            2
-          ]
+          "links": [1, 2]
         }
       ],
       "model": "qwen2.5:3b"
@@ -640,27 +520,19 @@
       "questions": [
         {
           "text": "Quels sont vos plans pour s'adapter à la nouvelle réglementation en 2027 ?",
-          "links": [
-            2
-          ]
+          "links": [2]
         },
         {
           "text": "Comment Givaudan pourrait-il aider Terrae Bio avec cette transition ?",
-          "links": [
-            1
-          ]
+          "links": [1]
         },
         {
           "text": "Quels sont vos principaux besoins en termes de goûts et formulations pour votre gamme bio?",
-          "links": [
-            2
-          ]
+          "links": [2]
         },
         {
           "text": "Avez-vous des préoccupations spécifiques concernant la réglementation bio européenne ?",
-          "links": [
-            1
-          ]
+          "links": [1]
         }
       ],
       "model": "qwen2.5:3b"
@@ -689,29 +561,19 @@
       "questions": [
         {
           "text": "Quels sont les principaux goûts que Vélia Beverages souhaite proposer dans ses boissons fonctionnelles ?",
-          "links": [
-            1,
-            2
-          ]
+          "links": [1, 2]
         },
         {
           "text": "Comment Vélia Beverages envisage-t-elle de répondre aux réglementations en vigueur pour les boissons fonctionnelles ?",
-          "links": [
-            3
-          ]
+          "links": [3]
         },
         {
           "text": "Quel est le calendrier prévu par Vélia Beverages pour l'implantation de son usine à Milan ?",
-          "links": [
-            2,
-            3
-          ]
+          "links": [2, 3]
         },
         {
           "text": "Avez-vous des suggestions sur comment Givaudan peut aider Vélia Beverages dans sa stratégie d'expansion industrielle ?",
-          "links": [
-            1
-          ]
+          "links": [1]
         }
       ],
       "model": "qwen2.5:3b"
