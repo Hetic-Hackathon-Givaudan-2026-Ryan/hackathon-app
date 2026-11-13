@@ -28,7 +28,7 @@ Concrètement :
 - Le service `dev` passe dans `profiles: [dev]`. `.devcontainer/devcontainer.json` le démarre avec `runServices: ["dev"]` (et `db`, par `depends_on`).
 - Les données PostgreSQL passent de `db/data/` à un volume Docker, `db-data`. C'est un changement par rapport à l'ADR 0002, qui reste acceptée pour le reste : `docker compose down -v` remet la démo à zéro, et une base créée avant le schéma des prospects n'empêche pas la démo de démarrer.
 - Les prospects, signaux, interlocuteurs et scores sont en base (`db/init/003-prospects.sql`, `004-prospects-seed.sql`), avec une fiche pré-rédigée par prospect. `POST /api/prospects/{id}/fiche` fait rédiger une nouvelle fiche par le LLM local et l'enregistre ; si l'IA échoue ou dépasse 110 s, la fiche en base est renvoyée (`openapi.yaml`).
-- Modèle par défaut : `qwen2.5:3b` (environ 2 Go). `llama3.2:1b` invente et écrit au nom de Givaudan ; un modèle plus petit que 3B n'a pas été retenu. `OLLAMA_MODEL` permet d'en changer.
+- Modèle par défaut : `qwen2.5:3b` (environ 2 Go). `llama3.2:1b` invente et écrit au nom de Givaudan ; un modèle plus petit que 3B n'a pas été retenu. `OLLAMA_MODEL` permet d'en changer. Ce choix est discuté dans l'ADR 0007.
 - Toutes les variables ont une valeur de démo dans `compose.yaml` (clé du service IA comprise, `demo-cle-locale`) : aucun `.env` n'est nécessaire, et aucune n'est un secret.
 - Le front lit l'API par défaut (mode `api`) ; `npm run dev:mock` garde les données mockées.
 
