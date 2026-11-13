@@ -1,16 +1,23 @@
 openapi: 3.1.0
 info:
   title: API Hackathon
-  version: 0.1.0
+  version: 0.2.0
   description: >-
-    API Express de `api/src/index.ts`. Elle enregistre des questions dans
-    PostgreSQL et obtient leur réponse auprès d'un fournisseur d'IA compatible
-    OpenAI (voir `api/.env.example`). Le front l'appelle via le proxy Vite `/api`.
+    API Express de `api/src/index.ts`. Elle sert les prospects du dashboard,
+    stockés dans PostgreSQL, et fait régénérer leur fiche par le service IA
+    (`ia/main.py`). Elle enregistre aussi des questions et obtient leur réponse
+    auprès d'un fournisseur d'IA compatible OpenAI (voir `api/.env.example`). Le
+    front l'appelle en chemin relatif `/api` : proxy Vite en développement,
+    nginx dans la démo `docker compose up`.
 servers:
   - url: http://localhost:3000
     description: Dev container (`npm run dev`)
+  - url: http://localhost:8080
+    description: Démo `docker compose up`, via le proxy nginx du front
 tags:
   - name: santé
+  - name: prospects
+  - name: ia
   - name: questions
 paths:
   /api/health:
@@ -27,6 +34,86 @@ paths:
                 $ref: '#/components/schemas/Health'
         '500':
           $ref: '#/components/responses/ErreurServeur'
+  /api/prospects:
+    get:
+      tags: [prospects]
+      summary: Liste les prospects, triés par score
+      description: >-
+        Tous les prospects, du meilleur score au moins bon, avec leurs signaux,
+        leurs interlocuteurs et leur fiche la plus récente. Données fictives de
+        démonstration (`db/init/004-prospects-seed.sql`).
+      operationId: listProspects
+      responses:
+        '200':
+          description: Les prospects, `score.rank` croissant.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Prospect'
+        '500':
+          $ref: '#/components/responses/ErreurServeur'
+  /api/prospects/{id}:
+    parameters:
+      - $ref: '#/components/parameters/ProspectId'
+    get:
+      tags: [prospects]
+      summary: Donne un prospect et sa fiche la plus récente
+      operationId: getProspect
+      responses:
+        '200':
+          description: Le prospect.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Prospect'
+        '404':
+          $ref: '#/components/responses/ProspectIntrouvable'
+        '500':
+          $ref: '#/components/responses/ErreurServeur'
+  /api/prospects/{id}/fiche:
+    parameters:
+      - $ref: '#/components/parameters/ProspectId'
+    post:
+      tags: [prospects]
+      summary: Régénère la fiche du prospect avec le LLM local
+      description: >-
+        Envoie les faits du prospect au service IA (`POST /fiche` de
+        `ia/main.py`), qui rédige « À retenir » et « Questions à poser ». La
+        nouvelle fiche est enregistrée dans la table `fiches`. Si le service IA
+        échoue ou dépasse `FICHE_TIMEOUT_MS` (110 s par défaut), rien n'est
+        enregistré et la fiche existante est renvoyée avec `status: repli`.
+        Pas de corps de requête.
+      operationId: regenerateFiche
+      responses:
+        '200':
+          description: Fiche régénérée, ou fiche existante en cas de repli.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FicheResult'
+        '404':
+          $ref: '#/components/responses/ProspectIntrouvable'
+        '500':
+          $ref: '#/components/responses/ErreurServeur'
+  /api/ia:
+    get:
+      tags: [ia]
+      summary: Donne l'état du modèle d'IA local
+      description: >-
+        Relaie `GET /health` du service IA. Au premier lancement, le service IA
+        télécharge le modèle puis le charge en mémoire : le front s'en sert pour
+        afficher la progression au lieu d'une erreur. Répond toujours 200, avec
+        `state: injoignable` si le service IA ne répond pas.
+      operationId: getIaStatus
+      responses:
+        '200':
+          description: État du modèle.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IaStatus'
   /api/questions:
     get:
       tags: [questions]
@@ -77,7 +164,260 @@ paths:
         '500':
           $ref: '#/components/responses/ErreurServeur'
 components:
+  parameters:
+    ProspectId:
+      name: id
+      in: path
+      required: true
+      description: Identifiant lisible du prospect.
+      schema:
+        type: string
+        example: nordika-foods
   schemas:
+    Prospect:
+      type: object
+      description: >-
+        Un prospect, au format `Prospect` de `web/src/types.ts`. Tables
+        `prospects`, `signals`, `contacts` et `fiches`
+        (`db/init/003-prospects.sql`).
+      required:
+        - id
+        - name
+        - segment
+        - activity
+        - country
+        - city
+        - size
+        - reach
+        - website
+        - why
+        - score
+        - signals
+        - takeaways
+        - questions
+        - contacts
+        - history
+      properties:
+        id:
+          type: string
+          example: nordika-foods
+        name:
+          type: string
+          example: Nordika Foods
+        segment:
+          type: string
+          enum: [Taste & Wellbeing, Fragrance & Beauty]
+        activity:
+          type: string
+          example: Produits laitiers végétaux
+        country:
+          type: string
+          example: Danemark
+        city:
+          type: string
+          example: Copenhague
+        size:
+          type: string
+          enum: [PME, ETI, GE]
+        revenue:
+          type: string
+          description: CA estimé, déjà mis en forme. Absent s'il est inconnu.
+          example: ~420 M€
+        reach:
+          type: string
+          enum: [Locale, Régionale, Internationale]
+        website:
+          type: string
+          example: nordikafoods.example
+        why:
+          type: string
+          description: « Pourquoi maintenant ».
+        score:
+          $ref: '#/components/schemas/Score'
+        signals:
+          type: array
+          description: Le signal le plus marquant en premier.
+          items:
+            $ref: '#/components/schemas/Signal'
+        takeaways:
+          type: array
+          description: Points « À retenir » de la fiche. `text` accepte **gras**.
+          items:
+            type: object
+            required: [text, source]
+            properties:
+              text:
+                type: string
+              source:
+                type: string
+        questions:
+          type: array
+          description: Questions à poser de la fiche.
+          items:
+            type: object
+            required: [text, links]
+            properties:
+              text:
+                type: string
+              links:
+                description: >-
+                  Numéros des points « À retenir » liés (à partir de 1), ou
+                  `contacts` si la question porte sur les interlocuteurs.
+                oneOf:
+                  - type: array
+                    items:
+                      type: integer
+                      minimum: 1
+                  - type: string
+                    const: contacts
+        contacts:
+          type: array
+          items:
+            $ref: '#/components/schemas/Contact'
+        history:
+          type: string
+          description: Historique des échanges avec Givaudan.
+        fiche:
+          $ref: '#/components/schemas/FicheInfo'
+    Score:
+      type: object
+      description: Score sur 100, calculé par règles, et son détail par axe.
+      required: [total, trend, rank, reliability, sources, axes]
+      properties:
+        total:
+          type: integer
+          minimum: 0
+          maximum: 100
+        trend:
+          type: integer
+          description: Évolution récente, en points.
+        rank:
+          type: integer
+          minimum: 1
+          description: Rang dans le portefeuille.
+        reliability:
+          type: string
+          enum: [élevée, moyenne, faible]
+        sources:
+          type: integer
+        axes:
+          type: array
+          minItems: 3
+          maxItems: 3
+          items:
+            type: object
+            required: [label, value, max, items]
+            properties:
+              label:
+                type: string
+                enum: [Potentiel, Opportunité, Accessibilité]
+              value:
+                type: integer
+              max:
+                type: integer
+              items:
+                type: array
+                items:
+                  type: object
+                  required: [label, value, max]
+                  properties:
+                    label:
+                      type: string
+                    value:
+                      type: integer
+                    max:
+                      type: integer
+              notes:
+                type: array
+                items:
+                  type: string
+    Signal:
+      type: object
+      required: [kind, summary, source, date]
+      properties:
+        kind:
+          type: string
+          example: Lancement produit
+        summary:
+          type: string
+        source:
+          type: string
+        date:
+          type: string
+          format: date
+    Contact:
+      type: object
+      required: [name, role, buyingRole, email, recommended]
+      properties:
+        name:
+          type: string
+        role:
+          type: string
+        since:
+          type: string
+        buyingRole:
+          type: string
+          description: Rôle dans l'achat.
+        why:
+          type: string
+        email:
+          type: string
+        recommended:
+          type: boolean
+    FicheInfo:
+      type: object
+      description: Qui a rédigé la fiche affichée, et quand.
+      required: [model, origin, createdAt]
+      properties:
+        model:
+          type: string
+          example: qwen2.5:3b
+        origin:
+          type: string
+          enum: [seed, regeneration]
+          description: >-
+            `seed` : pré-rédigée et chargée avec les données de démo.
+            `regeneration` : rédigée à la demande par `POST .../fiche`.
+        createdAt:
+          type: string
+          format: date-time
+    IaStatus:
+      type: object
+      required: [ready, state, detail]
+      properties:
+        model:
+          type: string
+          example: qwen2.5:3b
+        ready:
+          type: boolean
+          description: Le modèle est téléchargé et chargé ; la régénération peut marcher.
+        state:
+          type: string
+          enum: [attente, telechargement, chargement, pret, injoignable]
+        progress:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Pourcentage du téléchargement, pendant `telechargement`.
+        detail:
+          type: string
+          example: Téléchargement du modèle qwen2.5:3b…
+    FicheResult:
+      type: object
+      required: [status, prospect]
+      properties:
+        status:
+          type: string
+          enum: [regeneree, repli]
+          description: >-
+            `regeneree` : nouvelle fiche enregistrée. `repli` : le service IA a
+            échoué, la fiche existante est renvoyée.
+        reason:
+          type: string
+          description: Cause du repli, lisible par l'utilisateur.
+          example: Téléchargement du modèle qwen2.5:3b… (45 %)
+        prospect:
+          $ref: '#/components/schemas/Prospect'
     Health:
       type: object
       required: [status, db]
@@ -121,6 +461,14 @@ components:
         error:
           type: string
   responses:
+    ProspectIntrouvable:
+      description: Aucun prospect avec cet identifiant.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Erreur'
+          example:
+            error: Prospect introuvable
     ErreurServeur:
       description: >-
         Base injoignable ou fournisseur d'IA en erreur. Express renvoie sa page

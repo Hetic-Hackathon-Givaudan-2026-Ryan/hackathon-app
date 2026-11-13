@@ -4,7 +4,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build"
+    "dev:mock": "vite --mode mock",
+    "dev:ia": "vite --mode ia",
+    "build": "tsc && vite build",
+    "build:static": "tsc && vite build --mode static --base ./"
   },
   "devDependencies": {
     "@types/react": "^19.3.0",

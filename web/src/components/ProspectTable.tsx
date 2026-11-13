@@ -1,6 +1,10 @@
 import type { ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router';
 import type { Prospect } from '../types';
+import { CompanyMark, ScoreBadge } from './ui';
+
+const sizeLabel = (s: string) =>
+  ({ GE: 'Grand groupe', ETI: 'ETI', PME: 'PME' })[s] ?? s;
 
 export interface Column {
   key: string;
@@ -9,30 +13,41 @@ export interface Column {
   className?: string;
 }
 
-// Colonnes communes au tableau de bord et à la base des prospects
+// Colonnes communes à l'accueil et à la base des prospects
 export const columns = {
   name: {
     key: 'name',
     label: 'Entreprise',
     className: 'col-name',
-    cell: (p) => <Link to={`/prospects/${p.id}`}>{p.name}</Link>,
+    cell: (p) => (
+      <span className="company">
+        <CompanyMark name={p.name} />
+        <span>
+          <Link to={`/prospects/${p.id}`}>{p.name}</Link>
+          <small>{p.segment}</small>
+        </span>
+      </span>
+    ),
   },
-  segment: { key: 'segment', label: 'Segment', cell: (p) => p.segment },
   zone: {
     key: 'zone',
     label: 'Zone',
-    cell: (p) => `${p.country} · ${p.city}`,
+    cell: (p) => [p.country, p.city].filter(Boolean).join(' · '),
   },
-  size: { key: 'size', label: 'Taille', cell: (p) => p.size },
+  size: { key: 'size', label: 'Taille', cell: (p) => sizeLabel(p.size) },
+  reach: { key: 'reach', label: 'Portée', cell: (p) => p.reach },
+  why: {
+    key: 'why',
+    label: 'Opportunité principale',
+    className: 'col-why',
+    cell: (p) =>
+      p.why.charAt(0).toUpperCase() + p.why.slice(1).replace(/\.$/, ''),
+  },
   score: {
     key: 'score',
     label: 'Score',
     className: 'col-score',
-    cell: (p) => (
-      <>
-        <b>{p.score.total}</b>/100
-      </>
-    ),
+    cell: (p) => <ScoreBadge score={p.score} />,
   },
 } satisfies Record<string, Column>;
 
@@ -44,20 +59,22 @@ export default function ProspectTable({
   caption,
   empty,
   animateKey,
+  headless = false,
 }: {
   rows: Prospect[];
   cols: Column[];
   caption: string;
   empty?: ReactNode;
   animateKey?: string; // change quand les filtres changent, pour un fondu court
+  headless?: boolean; // sans ligne d'en-tête visible (accueil)
 }) {
   const navigate = useNavigate();
 
   return (
     <div className="table-wrap">
-      <table className="table">
+      <table className="table table--rows">
         <caption className="sr">{caption}</caption>
-        <thead>
+        <thead className={headless ? 'sr' : undefined}>
           <tr>
             {cols.map((c) => (
               <th key={c.key} scope="col" className={c.className}>

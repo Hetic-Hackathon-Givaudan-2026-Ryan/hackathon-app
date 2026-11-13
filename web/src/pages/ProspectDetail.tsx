@@ -1,16 +1,88 @@
-import { useRef, useState } from 'react';
-import { Link, useParams } from 'react-router';
-import type { Contact, Question } from '../types';
-import { getProspect, getProspects } from '../data/api';
+import { useEffect, useRef, useState } from 'react';
+import { Link, useLocation, useParams } from 'react-router';
+import type { Contact, FicheInfo, Prospect, Question } from '../types';
+import {
+  getIaStatus,
+  getProspect,
+  getProspects,
+  regenerateFiche,
+  SOURCE,
+  type IaStatus,
+} from '../data/api';
 import { useData } from '../lib/useData';
 import ScorePopover from '../components/ScorePopover';
 import {
+  LoadError,
   Loading,
   RichText,
+  CompanyMark,
   ScoreRing,
   useDismiss,
   useToast,
 } from '../components/ui';
+
+// Tendance sous l'anneau du score : flèche colorée, signe et texte
+function Trend({ value }: { value: number }) {
+  const kind = value > 0 ? 'up' : value < 0 ? 'down' : 'flat';
+  return (
+    <p className={`hero__trend trend trend--${kind}`}>
+      <span aria-hidden="true">
+        {kind === 'up' ? '▲' : kind === 'down' ? '▼' : '–'}
+      </span>
+      {value > 0 ? `+${value} pts` : value < 0 ? `${value} pts` : 'Stable'}
+      <small> · derniers échanges</small>
+    </p>
+  );
+}
+
+// Qui a rédigé la fiche : pré-rédigée en base, ou régénérée à la demande
+function ficheLabel(fiche: FicheInfo | undefined, sources: number) {
+  if (!fiche) return `Généré par l’IA · ${sources} sources · à vérifier`;
+  if (fiche.model.startsWith('maquette')) return 'Rédigé pour la maquette';
+  const when = new Date(fiche.createdAt).toLocaleString('fr-FR', {
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+  return `${fiche.origin === 'regeneration' ? 'Régénéré' : 'Pré-rédigé'} par l’IA (${fiche.model}) · ${when} · à vérifier`;
+}
+
+// Mode « api » : état du modèle d'IA, relu toutes les 3 s tant qu'il n'est
+// pas prêt (au premier lancement, il se télécharge pendant quelques minutes)
+function useIaStatus(enabled: boolean) {
+  const [status, setStatus] = useState<IaStatus>();
+  useEffect(() => {
+    if (!enabled) return;
+    let active = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const poll = () =>
+      getIaStatus()
+        .catch((): IaStatus => ({
+          ready: false,
+          state: 'injoignable',
+          detail: 'Service IA injoignable',
+        }))
+        .then((s) => {
+          if (!active) return;
+          setStatus(s);
+          if (!s.ready) timer = setTimeout(poll, 3000);
+        });
+    poll();
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [enabled]);
+  return status;
+}
+
+const waitLabel = (ia: IaStatus) =>
+  ia.state === 'telechargement'
+    ? `Modèle IA en téléchargement… ${ia.progress ?? 0} %`
+    : ia.state === 'chargement'
+      ? 'Modèle IA en cours de chargement…'
+      : 'IA en cours de démarrage…';
 
 const linkLabel = (links: Question['links']) =>
   links === 'contacts'
@@ -69,17 +141,47 @@ function ContactMenu({ contact }: { contact: Contact }) {
 
 export default function ProspectDetail() {
   const { id = '' } = useParams();
-  const { data: p, loading } = useData(`prospect-${id}`, () => getProspect(id));
+  const {
+    data: loaded,
+    loading,
+    error,
+  } = useData(`prospect-${id}`, () => getProspect(id));
+  // Fiche régénérée pendant la visite : remplace celle du chargement
+  const [regenerated, setRegenerated] = useState<Prospect>();
+  const [writing, setWriting] = useState(false);
+  const ia = useIaStatus(SOURCE === 'api');
+  const iaWaiting = !!ia && !ia.ready;
+  const p = regenerated?.id === id ? regenerated : loaded;
   const { data: all } = useData('prospects', getProspects);
   const notify = useToast();
   const [linked, setLinked] = useState<Question['links'] | null>(null);
   const [flash, setFlash] = useState(false);
   const recapRef = useRef<HTMLElement>(null);
+  const { hash } = useLocation();
+
+  // Arrivée depuis le copilote : faire défiler jusqu'au bloc demandé
+  useEffect(() => {
+    if (!p || !hash) return;
+    const el = document.getElementById(
+      hash === '#interlocuteurs' ? 'interlocuteurs-bloc' : 'recap-bloc',
+    );
+    el?.scrollIntoView({ block: 'start' });
+  }, [p, hash]);
 
   if (loading)
     return (
       <main className="page">
-        <Loading />
+        <Loading>
+          {SOURCE === 'ia'
+            ? 'L’IA rédige la fiche… (environ 15 s)'
+            : 'Chargement…'}
+        </Loading>
+      </main>
+    );
+  if (error)
+    return (
+      <main className="page">
+        <LoadError error={error} />
       </main>
     );
   if (!p)
@@ -107,37 +209,69 @@ export default function ProspectDetail() {
     setTimeout(() => setFlash(false), 1200);
   };
 
+  const regenerate = async () => {
+    setWriting(true);
+    try {
+      const res = await regenerateFiche(p.id);
+      setRegenerated(res.prospect);
+      notify(
+        res.status === 'regeneree'
+          ? 'Nouvelle fiche rédigée par l’IA locale'
+          : `L’IA n’a pas pu rédiger la fiche (${res.reason}) : fiche actuelle conservée`,
+      );
+    } catch (e) {
+      notify(e instanceof Error ? e.message : 'Régénération impossible');
+    } finally {
+      setWriting(false);
+    }
+  };
+
   const isLinked = (n: number) => Array.isArray(linked) && linked.includes(n);
 
   return (
     <main className="page">
       <nav className="crumbs" aria-label="Fil d’Ariane">
         <Link to="/prospects">Prospects</Link>
-        <span aria-hidden="true">›</span>
+        <span aria-hidden="true">/</span>
         <span aria-current="page">{p.name}</span>
       </nav>
 
       <section className="hero">
-        <div className="hero__logo" aria-hidden="true">
-          Logo
-        </div>
+        <CompanyMark name={p.name} size="lg" />
         <div className="hero__id">
           <h1>{p.name}</h1>
           <p className="hero__meta">
-            {p.segment} · {p.activity} · {p.country} · {p.city} · {p.size}
-            {p.revenue && ` (CA estimé ${p.revenue})`} · Portée{' '}
-            {p.reach.toLowerCase()} · {p.website}
+            {/* Les champs absents d'un jeu de données importé sont omis */}
+            {[
+              p.segment,
+              p.activity,
+              p.country,
+              p.city,
+              p.size + (p.revenue ? ` (CA estimé ${p.revenue})` : ''),
+              `Portée ${p.reach.toLowerCase()}`,
+              p.website,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
           </p>
           <p className="hero__why">
             <b>Pourquoi maintenant :</b> {p.why}
           </p>
         </div>
         <div className="hero__score">
-          <ScoreRing value={p.score.total} />
+          <ScoreRing score={p.score} />
+          <p className="hero__rank">
+            {p.score.rank === 1 ? '1er' : `${p.score.rank}e`} sur{' '}
+            {all?.length ?? '…'}
+          </p>
+          <Trend value={p.score.trend ?? 0} />
           <dl className="hero__axes">
-            {[potential, opportunity, access].map((a) => (
+            {[potential, opportunity, access].map((a, i) => (
               <div key={a.label}>
-                <dt>{a.label}</dt>
+                <dt>
+                  <span className={`dot axis-${i}`} aria-hidden="true"></span>
+                  {a.label}
+                </dt>
                 <dd>
                   {a.value}/{a.max}
                 </dd>
@@ -166,15 +300,32 @@ export default function ProspectDetail() {
         <div className="detail__main">
           <section
             ref={recapRef}
+            id="recap-bloc"
             tabIndex={-1}
             className={`panel${flash ? ' is-flash' : ''}`}
             aria-labelledby="recap"
+            aria-busy={writing}
           >
             <div className="panel__head">
               <h2 id="recap">À retenir avant votre rendez-vous</h2>
-              <span className="tag tag--soft">
-                Généré par l’IA · {p.score.sources} sources · à vérifier
+              <span className="tag tag--accent">
+                {ficheLabel(p.fiche, p.score.sources)}
               </span>
+              {SOURCE === 'api' && (
+                <button
+                  type="button"
+                  className="link"
+                  disabled={writing || iaWaiting}
+                  title={ia && !ia.ready ? ia.detail : undefined}
+                  onClick={regenerate}
+                >
+                  {writing
+                    ? 'L’IA locale rédige… (jusqu’à 2 min)'
+                    : ia && !ia.ready
+                      ? waitLabel(ia)
+                      : 'Régénérer avec l’IA'}
+                </button>
+              )}
             </div>
             {p.takeaways.length ? (
               <ol className="takeaways">
@@ -240,6 +391,7 @@ export default function ProspectDetail() {
 
         <aside className="detail__side">
           <section
+            id="interlocuteurs-bloc"
             className={`panel${linked === 'contacts' ? ' is-linked' : ''}`}
             aria-labelledby="interlocuteurs"
           >
@@ -252,10 +404,10 @@ export default function ProspectDetail() {
                     <div>
                       <p className="contacts__name">
                         <b>{c.name}</b>
-                        {c.recommended && (
-                          <span className="tag tag--dark">Recommandé</span>
-                        )}
                       </p>
+                      {c.recommended && (
+                        <span className="tag tag--accent">Recommandé</span>
+                      )}
                       <p>
                         {c.role}
                         {c.since && ` · ${c.since}`}

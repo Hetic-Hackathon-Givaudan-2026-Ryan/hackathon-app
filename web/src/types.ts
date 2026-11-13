@@ -1,5 +1,5 @@
 // Contrat des données affichées par le front (wireframe v2).
-// Aujourd'hui rempli par mock.ts ; demain par l'API branchée sur la base de l'équipe data/IA.
+// Rempli par l'API (GET /api/prospects, openapi.yaml) ou, en mode mock, par mock.ts.
 
 export type Segment = 'Taste & Wellbeing' | 'Fragrance & Beauty';
 export type Size = 'PME' | 'ETI' | 'GE';
@@ -58,10 +58,18 @@ export interface ScoreAxis {
 
 export interface ScoreDetail {
   total: number; // 0-100
+  trend?: number; // évolution récente, en points (+ ça monte, - ça baisse)
   rank: number; // rang dans le portefeuille
   reliability: 'élevée' | 'moyenne' | 'faible';
   sources: number;
   axes: [ScoreAxis, ScoreAxis, ScoreAxis];
+}
+
+// Qui a rédigé la fiche « À retenir » / « Questions à poser », et quand
+export interface FicheInfo {
+  model: string;
+  origin: 'seed' | 'regeneration'; // pré-rédigée en base, ou régénérée à la demande
+  createdAt: string; // ISO
 }
 
 export interface Prospect {
@@ -82,11 +90,13 @@ export interface Prospect {
   questions: Question[];
   contacts: Contact[];
   history: string;
+  fiche?: FicheInfo; // absent en mode mock
 }
 
 export interface SalesUser {
   firstName: string;
   lastName: string;
+  role?: string; // ex. KAM · Europe
 }
 
 export interface Briefing {

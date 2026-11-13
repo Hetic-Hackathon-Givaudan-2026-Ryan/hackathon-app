@@ -1,12 +1,13 @@
 import { useMemo } from 'react';
 import { useSearchParams } from 'react-router';
 import type { Prospect } from '../types';
-import { daysAgo, getProspects, isRecent } from '../data/api';
-import { plural, signalDate } from '../lib/format';
+import { getProspects } from '../data/api';
+import { plural } from '../lib/format';
 import { useData } from '../lib/useData';
+import DatasetBar from '../components/DatasetBar';
 import FilterMenu from '../components/FilterMenu';
 import ProspectTable, { columns } from '../components/ProspectTable';
-import { Loading } from '../components/ui';
+import { LoadError, Loading } from '../components/ui';
 
 const PAGE = 8;
 
@@ -29,14 +30,14 @@ type SortKey = keyof typeof sorts;
 
 // Les filtres vivent dans l'adresse : on peut partager ou recharger une vue.
 export default function Prospects() {
-  const { data: prospects } = useData('prospects', getProspects);
+  const { data: prospects, error } = useData('prospects', getProspects);
   const [params, setParams] = useSearchParams();
 
   const q = params.get('q') ?? '';
   const segments = params.getAll('segment');
   const countries = params.getAll('pays');
   const minScore = Number(params.get('score') ?? 0);
-  const recent = params.get('recent') === '1';
+  const sizes = params.getAll('taille');
   const sortParam = params.get('tri');
   const sort: SortKey =
     sortParam && sortParam in sorts ? (sortParam as SortKey) : 'score';
@@ -57,6 +58,7 @@ export default function Prospects() {
   const options = useMemo(
     () => ({
       segments: [...new Set(all.map((p) => p.segment))].sort(),
+      sizes: [...new Set(all.map((p) => p.size))].sort(),
       countries: [...new Set(all.map((p) => p.country))].sort((a, b) =>
         a.localeCompare(b, 'fr'),
       ),
@@ -78,9 +80,16 @@ export default function Prospects() {
     .filter((p) => !segments.length || segments.includes(p.segment))
     .filter((p) => !countries.length || countries.includes(p.country))
     .filter((p) => p.score.total >= minScore)
-    .filter((p) => !recent || (p.signals[0] && isRecent(p.signals[0].date)))
+    .filter((p) => !sizes.length || sizes.includes(p.size))
     .sort(sorts[sort].fn);
 
+  if (error)
+    return (
+      <main className="page">
+        <DatasetBar />
+        <LoadError error={error} />
+      </main>
+    );
   if (!prospects)
     return (
       <main className="page">
@@ -92,14 +101,16 @@ export default function Prospects() {
   const current = Math.min(page, pages);
   const visible = rows.slice((current - 1) * PAGE, current * PAGE);
   const filtered =
-    q || segments.length || countries.length || minScore || recent;
+    q || segments.length || countries.length || minScore || sizes.length;
   const clear = () => setParams({}, { replace: true });
 
   return (
     <main className="page">
-      <h1>Prospects</h1>
+      <DatasetBar />
+      <p className="eyebrow">Prospects</p>
+      <h1>Vos prospects</h1>
       <p className="lede">
-        {plural(all.length, 'prospect')} suivis · triés par{' '}
+        {plural(all.length, 'prospect')} dans votre territoire · triés par{' '}
         {sorts[sort].label.toLowerCase()}
       </p>
 
@@ -108,7 +119,7 @@ export default function Prospects() {
           <span className="sr">Rechercher une entreprise ou un secteur</span>
           <input
             type="search"
-            placeholder="Rechercher une entreprise, un secteur…"
+            placeholder="Rechercher une entreprise, une marque…"
             value={q}
             onChange={(e) => update({ q: e.target.value })}
           />
@@ -127,11 +138,11 @@ export default function Prospects() {
             onChange={(v) => update({ segment: v })}
           />
           <FilterMenu
-            label="Pays"
+            label="Zone"
             summary={
               countries.length === 1
                 ? countries[0]
-                : `Pays · ${countries.length}`
+                : `Zone · ${countries.length}`
             }
             multiple
             options={options.countries.map((c) => ({ value: c, label: c }))}
@@ -148,14 +159,14 @@ export default function Prospects() {
             selected={minScore ? [String(minScore)] : []}
             onChange={(v) => update({ score: v })}
           />
-          <button
-            type="button"
-            className={`pill${recent ? ' is-set' : ''}`}
-            aria-pressed={recent}
-            onClick={() => update({ recent: recent ? null : '1' })}
-          >
-            Signal récent
-          </button>
+          <FilterMenu
+            label="Taille"
+            summary={sizes.length === 1 ? sizes[0] : `Taille · ${sizes.length}`}
+            multiple
+            options={options.sizes.map((t) => ({ value: t, label: t }))}
+            selected={sizes}
+            onChange={(v) => update({ taille: v })}
+          />
           {filtered ? (
             <button type="button" className="link reset" onClick={clear}>
               Effacer
@@ -163,7 +174,7 @@ export default function Prospects() {
           ) : null}
         </div>
         <div className="toolbar__sort">
-          <span className="muted">Trier par :</span>
+          <span className="muted">Trier par</span>
           <FilterMenu
             variant="text"
             align="end"
@@ -184,68 +195,62 @@ export default function Prospects() {
         {plural(rows.length, 'résultat')}
       </p>
 
-      <ProspectTable
-        caption="Base des prospects"
-        animateKey={key}
-        rows={visible}
-        empty={
-          <>
-            Aucun prospect ne correspond à ces critères.{' '}
-            <button type="button" className="link" onClick={clear}>
-              Effacer les filtres
-            </button>
-          </>
-        }
-        cols={[
-          columns.name,
-          columns.segment,
-          columns.zone,
-          columns.size,
-          { key: 'reach', label: 'Portée', cell: (p) => p.reach },
-          columns.score,
-          {
-            key: 'signal',
-            label: 'Dernier signal',
-            cell: (p) => {
-              const s = p.signals[0];
-              return s ? (
-                <>
-                  {s.kind} · {signalDate(s.date, daysAgo(s.date))}
-                </>
-              ) : (
-                <span className="muted">—</span>
-              );
-            },
-          },
-        ]}
-      />
+      <div className="board">
+        <ProspectTable
+          caption="Base des prospects"
+          animateKey={key}
+          rows={visible}
+          empty={
+            <>
+              Aucun prospect ne correspond à ces critères.{' '}
+              <button type="button" className="link" onClick={clear}>
+                Effacer les filtres
+              </button>
+            </>
+          }
+          cols={[
+            columns.name,
+            columns.zone,
+            columns.size,
+            columns.reach,
+            columns.why,
+            columns.score,
+          ]}
+        />
 
-      {rows.length > 0 && (
-        <nav className="pager" aria-label="Pagination">
-          <span>
-            {(current - 1) * PAGE + 1}–{Math.min(current * PAGE, rows.length)}{' '}
-            sur {rows.length}
-          </span>
-          {current > 1 && (
-            <button
-              type="button"
-              className="link"
-              onClick={() => update({ page: String(current - 1) })}
-            >
-              ‹ Page précédente
-            </button>
-          )}
-          {current < pages && (
-            <button
-              type="button"
-              className="link"
-              onClick={() => update({ page: String(current + 1) })}
-            >
-              Page suivante ›
-            </button>
-          )}
-        </nav>
-      )}
+        {rows.length > 0 && (
+          <nav className="pager" aria-label="Pagination">
+            <span>
+              {(current - 1) * PAGE + 1}–{Math.min(current * PAGE, rows.length)}{' '}
+              sur {rows.length}
+            </span>
+            {current > 1 && (
+              <button
+                type="button"
+                className="link"
+                onClick={() => update({ page: String(current - 1) })}
+              >
+                ‹ Page précédente
+              </button>
+            )}
+            {current < pages && (
+              <button
+                type="button"
+                className="link"
+                onClick={() => update({ page: String(current + 1) })}
+              >
+                Page suivante ›
+              </button>
+            )}
+          </nav>
+        )}
+      </div>
+      <p className="legend" aria-hidden="true">
+        <span className="dot axis-0"></span> Potentiel
+        <span className="dot axis-1"></span> Opportunité
+        <span className="dot axis-2"></span> Accessibilité
+        <span className="muted">· barres du score sur 100</span>
+      </p>
     </main>
   );
 }

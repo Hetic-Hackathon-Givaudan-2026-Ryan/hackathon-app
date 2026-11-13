@@ -6,6 +6,7 @@ import ProspectDetail from './pages/ProspectDetail';
 import Prospects from './pages/Prospects';
 import Questions from './pages/Questions';
 import Signals from './pages/Signals';
+import Appointments from './pages/Appointments';
 
 // Ouvert en fichier local (double-clic sur le HTML), il n'y a pas de serveur
 // pour répondre aux adresses /prospects/... : on passe par le #.
@@ -20,6 +21,7 @@ export default function App() {
           <Route path="prospects" element={<Prospects />} />
           <Route path="prospects/:id" element={<ProspectDetail />} />
           <Route path="signaux" element={<Signals />} />
+          <Route path="rendez-vous" element={<Appointments />} />
           <Route path="questions" element={<Questions />} />
           <Route path="*" element={<NotFound />} />
         </Route>
