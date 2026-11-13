@@ -347,6 +347,24 @@ def fiche(body: ProspectFacts, x_api_key: Annotated[str, Header()] = "") -> Fich
     prompt = f"Prospect : {body.name} · {body.segment} · {body.activity}\nFAITS :\n" + "\n".join(
         f"{i}. {f['text']}" for i, f in enumerate(facts, 1)
     )
+    # Le LLM local répond parfois hors des règles (« nous », fait non cité) :
+    # on lui redonne une chance, tant qu'il reste du temps
+    deadline = time.monotonic() + TIMEOUT
+    for attempt in range(3):
+        remaining = deadline - time.monotonic()
+        if attempt and remaining < 20:
+            break
+        out = ask_llm(prompt, temperature=0.2 + 0.3 * attempt, timeout=remaining)
+        cleaned = clean(facts, out)
+        if cleaned:
+            takeaways, questions = cleaned
+            return Fiche(takeaways=takeaways, questions=questions, model=MODEL)
+        print(f"Fiche {body.name} : réponse non conforme (essai {attempt + 1})", flush=True)
+    raise HTTPException(status_code=502, detail="Réponse du LLM non conforme (faits non cités ou texte à la première personne)")
+
+
+def ask_llm(prompt: str, temperature: float, timeout: float) -> dict:
+    """Un appel à Ollama, en sortie structurée. Lève une HTTPException si Ollama échoue."""
     try:
         response = httpx.post(
             f"{OLLAMA_URL}/api/chat",
@@ -358,10 +376,10 @@ def fiche(body: ProspectFacts, x_api_key: Annotated[str, Header()] = "") -> Fich
                 ],
                 "format": SCHEMA,
                 "stream": False,
-                "options": {"temperature": 0.2, "num_predict": 600, "repeat_penalty": 1.15},
-                "keep_alive": "30m",  # modèle gardé en mémoire entre deux fiches
+                "options": {"temperature": temperature, "num_predict": 600, "repeat_penalty": 1.15},
+                "keep_alive": -1,  # modèle gardé en mémoire entre deux fiches
             },
-            timeout=TIMEOUT,
+            timeout=timeout,
         )
         response.raise_for_status()
         out = json.loads(response.json()["message"]["content"])
@@ -373,9 +391,5 @@ def fiche(body: ProspectFacts, x_api_key: Annotated[str, Header()] = "") -> Fich
     except httpx.HTTPError as e:
         raise HTTPException(status_code=504, detail=f"Ollama injoignable ou trop lent : {type(e).__name__}")
     except (ValueError, KeyError):
-        raise HTTPException(status_code=502, detail="Réponse du LLM illisible")
-    cleaned = clean(facts, out if isinstance(out, dict) else {})
-    if not cleaned:
-        raise HTTPException(status_code=502, detail="Réponse du LLM non conforme (faits non cités ou texte à la première personne)")
-    takeaways, questions = cleaned
-    return Fiche(takeaways=takeaways, questions=questions, model=MODEL)
+        return {}  # JSON illisible : traité comme une réponse non conforme
+    return out if isinstance(out, dict) else {}
